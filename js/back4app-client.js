@@ -7,7 +7,8 @@
    updateInClass / deleteInClass against Back4App's Parse REST
    API). Data is kept separate by project through distinct
    Parse class names (MonkDay, MonkPlaceNote, MonkJournalEntry,
-   MonkActivity) that don't overlap with the wardrobe's
+   MonkActivity, MonkPlant, MonkSourdoughFeeding,
+   MonkWatchlistItem) that don't overlap with the wardrobe's
    Garment/Repair/Outfit/etc classes in that same app.
    ============================================================ */
 

@@ -29,14 +29,28 @@
 
       <!-- HOME -->
       <section class="monk-section" id="sec-home" data-title="Home">
-        <p class="monk-eyebrow">Chapter I &middot; <span id="home-date"></span></p>
-        <h1 class="monk-h1">Home</h1>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span> &middot; <span id="home-date"></span></p>
+        <h1 class="monk-h1" id="home-greeting">Home</h1>
 
         <!-- primary: today's vow, the one thing to act on -->
         <div class="monk-hero" id="home-vow-card">
           <p class="monk-hero-label">Today's Focus Vow</p>
           <p class="monk-hero-text" id="home-vow"></p>
           <button class="monk-btn primary" id="home-vow-btn">Mark as Kept</button>
+        </div>
+
+        <!-- primary: the actual reason to open this page each day -->
+        <div class="monk-question-block">
+          <p class="monk-hero-label">Today's Question</p>
+          <p class="monk-question-text" id="home-question"></p>
+          <div class="monk-question-actions">
+            <button class="monk-quiet-link" id="home-question-new">Another Question</button>
+            <button class="monk-quiet-link" id="home-question-reveal">Reflect on This</button>
+          </div>
+          <div id="home-question-reflect" style="display:none">
+            <textarea class="monk-textarea" id="home-question-answer" placeholder="A line or two is enough..."></textarea>
+            <button class="monk-btn primary" id="home-question-save">Save to Journal</button>
+          </div>
         </div>
 
         <!-- secondary: streak, at a glance -->
@@ -69,7 +83,7 @@
 
       <!-- RHYTHM -->
       <section class="monk-section" id="sec-rhythm" data-title="Rhythm">
-        <p class="monk-eyebrow">Chapter II</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Rhythm</h1>
         <h2 class="monk-h2">Morning</h2>
         <ul class="monk-checklist" id="rhythm-morning"></ul>
@@ -79,7 +93,7 @@
 
       <!-- PLACE -->
       <section class="monk-section" id="sec-place" data-title="Place">
-        <p class="monk-eyebrow">Chapter III</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Place</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="place-prompt"></p>
@@ -93,7 +107,7 @@
 
       <!-- PRESENCE -->
       <section class="monk-section" id="sec-presence" data-title="Presence">
-        <p class="monk-eyebrow">Chapter IV</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Presence</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="presence-prompt"></p>
@@ -104,7 +118,7 @@
 
       <!-- SOLITUDE -->
       <section class="monk-section" id="sec-solitude" data-title="Solitude">
-        <p class="monk-eyebrow">Chapter V</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Solitude</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="solitude-prompt"></p>
@@ -115,7 +129,7 @@
 
       <!-- HUMILITY -->
       <section class="monk-section" id="sec-humility" data-title="Humility">
-        <p class="monk-eyebrow">Chapter VI</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Humility</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="humility-prompt"></p>
@@ -125,7 +139,7 @@
 
       <!-- LEARNING -->
       <section class="monk-section" id="sec-learning" data-title="Learning">
-        <p class="monk-eyebrow">Chapter VII</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Learning</h1>
         <select class="monk-select" id="learning-category"></select>
         <div class="monk-card">
@@ -135,9 +149,22 @@
         </div>
       </section>
 
+      <!-- READING -->
+      <section class="monk-section" id="sec-reading" data-title="Reading">
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
+        <h1 class="monk-h1">Reading</h1>
+        <p class="monk-lede">A shelf, not a checklist. Click a book to open it and leave something in the margin.</p>
+        <div class="monk-card">
+          <input class="monk-input" id="book-title-input" placeholder="Title">
+          <input class="monk-input" id="book-author-input" placeholder="Author, optional">
+          <button class="monk-btn primary" id="book-add">Add Book</button>
+        </div>
+        <div id="book-list"></div>
+      </section>
+
       <!-- CRAFT -->
       <section class="monk-section" id="sec-craft" data-title="Craft">
-        <p class="monk-eyebrow">Chapter VIII</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Craft</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="craft-prompt">Press Random Craft to begin.</p>
@@ -147,9 +174,83 @@
         <div id="craft-groups"></div>
       </section>
 
+      <!-- PLANTS -->
+      <section class="monk-section" id="sec-plants" data-title="Plants">
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
+        <h1 class="monk-h1">Plants</h1>
+        <p class="monk-lede">Seed to seedling to sprout to fruiting to harvestable.</p>
+        <div class="monk-card">
+          <input class="monk-input" id="plant-name-input" placeholder="Name (e.g. Balcony Basil)">
+          <input class="monk-input" id="plant-species-input" placeholder="Variety, optional">
+          <button class="monk-btn primary" id="plant-add">Add Plant</button>
+        </div>
+        <div id="plant-list"></div>
+      </section>
+
+      <!-- SOURDOUGH -->
+      <section class="monk-section" id="sec-sourdough" data-title="Sourdough">
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
+        <h1 class="monk-h1">Sourdough</h1>
+
+        <h2 class="monk-h2">Starter Log</h2>
+        <div class="monk-card">
+          <p class="monk-home-value" id="sourdough-last-fed"></p>
+          <input class="monk-input" id="sourdough-note-input" placeholder="Note — e.g. 50g flour, 50g water (optional)" style="margin-top:14px">
+          <button class="monk-btn primary" id="sourdough-log">Log a Feeding</button>
+        </div>
+        <div id="sourdough-log-entries"></div>
+
+        <h2 class="monk-h2">Discard Recipes</h2>
+        <div class="monk-tag-row" id="sourdough-discard-tags"></div>
+
+        <h2 class="monk-h2">Recipes to Try</h2>
+        <div class="monk-tag-row" id="sourdough-recipe-tags"></div>
+      </section>
+
+      <!-- WATCHLIST -->
+      <section class="monk-section" id="sec-watchlist" data-title="Watchlist">
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
+        <h1 class="monk-h1">Watchlist</h1>
+        <p class="monk-lede">Something to learn from, instead of doomscrolling.</p>
+        <div class="monk-card">
+          <input class="monk-input" id="watch-title-input" placeholder="Title">
+          <input class="monk-input" id="watch-note-input" placeholder="Why this one? (optional)">
+          <button class="monk-btn primary" id="watch-add">Add to Watchlist</button>
+        </div>
+        <button class="monk-btn" id="watch-surprise">What Should I Watch Tonight?</button>
+        <p class="monk-quote" id="watch-suggestion" style="display:none"></p>
+        <ul class="monk-checklist" id="watch-list"></ul>
+      </section>
+
+      <!-- WISHLIST -->
+      <section class="monk-section" id="sec-wishlist" data-title="Wishlist">
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
+        <h1 class="monk-h1">Wishlist</h1>
+        <p class="monk-lede">Things to mull over rather than buy on impulse. Nothing here is a cart.</p>
+
+        <div class="monk-card">
+          <p class="monk-home-label" style="margin-bottom:10px">Daily amount you're setting aside toward things on this list</p>
+          <div class="monk-rate-row">
+            <span>$</span>
+            <input class="monk-input" id="wishlist-rate-input" style="margin-bottom:0" inputmode="decimal">
+            <button class="monk-btn" id="wishlist-rate-save">Save</button>
+          </div>
+          <p class="monk-note" style="margin-top:10px">Earned toward a purchase, not taken from rent or bills — this is a pace-setter, not a budget.</p>
+        </div>
+
+        <div class="monk-card">
+          <input class="monk-input" id="wish-name-input" placeholder="Item">
+          <input class="monk-input" id="wish-price-input" placeholder="Price (e.g. 100)" inputmode="decimal">
+          <input class="monk-input" id="wish-note-input" placeholder="Why do you want it? (optional)">
+          <button class="monk-btn primary" id="wish-add">Add to Wishlist</button>
+        </div>
+
+        <div id="wishlist-list"></div>
+      </section>
+
       <!-- STEWARDSHIP -->
       <section class="monk-section" id="sec-stewardship" data-title="Stewardship">
-        <p class="monk-eyebrow">Chapter IX</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Stewardship</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="stewardship-prompt"></p>
@@ -160,7 +261,7 @@
 
       <!-- ATTENTION -->
       <section class="monk-section" id="sec-attention" data-title="Attention">
-        <p class="monk-eyebrow">Chapter X</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Attention</h1>
         <div class="monk-counter-row">
           <button class="monk-counter-btn" data-attn="reached">
@@ -181,7 +282,7 @@
 
       <!-- JOY -->
       <section class="monk-section" id="sec-joy" data-title="Joy">
-        <p class="monk-eyebrow">Chapter XI</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Joy</h1>
         <div class="monk-card">
           <p class="monk-prompt" id="joy-prompt"></p>
@@ -192,7 +293,7 @@
 
       <!-- JOURNAL -->
       <section class="monk-section" id="sec-journal" data-title="Journal">
-        <p class="monk-eyebrow">Chapter XII</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Journal</h1>
         <textarea class="monk-textarea" id="journal-text" placeholder="Write today's entry..."></textarea>
         <button class="monk-btn primary" id="journal-save">Save Entry</button>
@@ -202,7 +303,7 @@
 
       <!-- RANDOM PRACTICE -->
       <section class="monk-section" id="sec-random" data-title="Random Practice">
-        <p class="monk-eyebrow">Chapter XIII</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Random Practice</h1>
         <button class="monk-btn primary" id="random-generate">Give Me Today's Practice</button>
         <div class="monk-card" id="random-card" style="display:none">
@@ -213,7 +314,7 @@
 
       <!-- PROGRESS -->
       <section class="monk-section" id="sec-progress" data-title="Progress">
-        <p class="monk-eyebrow">Chapter XIV</p>
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
         <h1 class="monk-h1">Progress</h1>
         <p class="monk-lede">A record, not a scoreboard. The purpose is reflection, not achievement.</p>
         <div id="progress-bars"></div>
@@ -221,6 +322,13 @@
 
     </div>
   </main>
+</div>
+
+<div class="monk-modal-overlay" id="monk-modal-overlay" style="display:none">
+  <div class="monk-modal">
+    <button class="monk-modal-close" id="monk-modal-close" aria-label="Close">&times;</button>
+    <div id="monk-modal-body"></div>
+  </div>
 </div>
 
 <script src="js/back4app-client.js"></script>
