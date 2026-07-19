@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Urban Monk Rule</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="monk-topmenu">
+  <p class="monk-title">The Urban Monk Rule</p>
+  <p class="monk-subtitle">A digital field notebook</p>
+  <select id="monk-mobile-nav"></select>
+</div>
+
+<div class="monk-shell">
+
+  <aside class="monk-sidebar">
+    <p class="monk-title">The Urban Monk Rule</p>
+    <p class="monk-subtitle">A digital field notebook</p>
+    <ul class="monk-nav" id="monk-nav-list"></ul>
+  </aside>
+
+  <main class="monk-main">
+    <div class="monk-content">
+
+      <!-- HOME -->
+      <section class="monk-section" id="sec-home" data-title="Home">
+        <p class="monk-eyebrow">Chapter I</p>
+        <h1 class="monk-h1">Home</h1>
+
+        <div class="monk-home-block">
+          <p class="monk-home-label">Today</p>
+          <p class="monk-home-value" id="home-date"></p>
+        </div>
+        <div class="monk-home-block">
+          <p class="monk-home-label">From the Rule</p>
+          <p class="monk-quote" id="home-quote"></p>
+        </div>
+        <div class="monk-home-block">
+          <p class="monk-home-label">Today's Focus Vow</p>
+          <p class="monk-home-value" id="home-vow"></p>
+        </div>
+        <div class="monk-home-block">
+          <p class="monk-home-label">Current Streak</p>
+          <p class="monk-home-value" id="home-streak"></p>
+        </div>
+        <div class="monk-home-block">
+          <p class="monk-home-label">Morning Reminder</p>
+          <p class="monk-home-value" id="home-morning-reminder"></p>
+        </div>
+        <div class="monk-home-block">
+          <p class="monk-home-label">Evening Reminder</p>
+          <p class="monk-home-value" id="home-evening-reminder"></p>
+        </div>
+      </section>
+
+      <!-- RHYTHM -->
+      <section class="monk-section" id="sec-rhythm" data-title="Rhythm">
+        <p class="monk-eyebrow">Chapter II</p>
+        <h1 class="monk-h1">Rhythm</h1>
+        <h2 class="monk-h2">Morning</h2>
+        <ul class="monk-checklist" id="rhythm-morning"></ul>
+        <h2 class="monk-h2">Evening</h2>
+        <ul class="monk-checklist" id="rhythm-evening"></ul>
+      </section>
+
+      <!-- PLACE -->
+      <section class="monk-section" id="sec-place" data-title="Place">
+        <p class="monk-eyebrow">Chapter III</p>
+        <h1 class="monk-h1">Place</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="place-prompt"></p>
+          <textarea class="monk-textarea" id="place-note" placeholder="Write what you noticed..."></textarea>
+          <button class="monk-btn primary" id="place-save">Save Observation</button>
+          <button class="monk-btn" id="place-new">New Prompt</button>
+        </div>
+        <h2 class="monk-h2">Past Observations</h2>
+        <div id="place-entries"></div>
+      </section>
+
+      <!-- PRESENCE -->
+      <section class="monk-section" id="sec-presence" data-title="Presence">
+        <p class="monk-eyebrow">Chapter IV</p>
+        <h1 class="monk-h1">Presence</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="presence-prompt"></p>
+          <button class="monk-btn primary" id="presence-done">I Did This</button>
+          <button class="monk-btn" id="presence-new">New Practice</button>
+        </div>
+      </section>
+
+      <!-- SOLITUDE -->
+      <section class="monk-section" id="sec-solitude" data-title="Solitude">
+        <p class="monk-eyebrow">Chapter V</p>
+        <h1 class="monk-h1">Solitude</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="solitude-prompt"></p>
+          <button class="monk-btn primary" id="solitude-done">Mark Complete</button>
+          <button class="monk-btn" id="solitude-new">Randomize</button>
+        </div>
+      </section>
+
+      <!-- HUMILITY -->
+      <section class="monk-section" id="sec-humility" data-title="Humility">
+        <p class="monk-eyebrow">Chapter VI</p>
+        <h1 class="monk-h1">Humility</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="humility-prompt"></p>
+          <button class="monk-btn" id="humility-new">New Reminder</button>
+        </div>
+      </section>
+
+      <!-- LEARNING -->
+      <section class="monk-section" id="sec-learning" data-title="Learning">
+        <p class="monk-eyebrow">Chapter VII</p>
+        <h1 class="monk-h1">Learning</h1>
+        <select class="monk-select" id="learning-category"></select>
+        <div class="monk-card">
+          <p class="monk-prompt" id="learning-topic"></p>
+          <button class="monk-btn primary" id="learning-done">Mark Studied</button>
+          <button class="monk-btn" id="learning-new">New Topic</button>
+        </div>
+      </section>
+
+      <!-- CRAFT -->
+      <section class="monk-section" id="sec-craft" data-title="Craft">
+        <p class="monk-eyebrow">Chapter VIII</p>
+        <h1 class="monk-h1">Craft</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="craft-prompt">Press Random Craft to begin.</p>
+          <button class="monk-btn primary" id="craft-done">Mark Completed</button>
+          <button class="monk-btn" id="craft-new">Random Craft</button>
+        </div>
+        <div id="craft-groups"></div>
+      </section>
+
+      <!-- STEWARDSHIP -->
+      <section class="monk-section" id="sec-stewardship" data-title="Stewardship">
+        <p class="monk-eyebrow">Chapter IX</p>
+        <h1 class="monk-h1">Stewardship</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="stewardship-prompt"></p>
+          <button class="monk-btn primary" id="stewardship-done">Mark Complete</button>
+          <button class="monk-btn" id="stewardship-new">Randomize</button>
+        </div>
+      </section>
+
+      <!-- ATTENTION -->
+      <section class="monk-section" id="sec-attention" data-title="Attention">
+        <p class="monk-eyebrow">Chapter X</p>
+        <h1 class="monk-h1">Attention</h1>
+        <div class="monk-counter-row">
+          <button class="monk-counter-btn" data-attn="reached">
+            <span class="n" id="attn-n-reached">0</span>
+            <span class="label">I reached for my phone unnecessarily</span>
+          </button>
+          <button class="monk-counter-btn" data-attn="noticed">
+            <span class="n" id="attn-n-noticed">0</span>
+            <span class="label">I noticed and stopped</span>
+          </button>
+          <button class="monk-counter-btn" data-attn="focused">
+            <span class="n" id="attn-n-focused">0</span>
+            <span class="label">I completed focused work</span>
+          </button>
+        </div>
+        <p class="monk-note">Totals shown are for the last 7 days.</p>
+      </section>
+
+      <!-- JOY -->
+      <section class="monk-section" id="sec-joy" data-title="Joy">
+        <p class="monk-eyebrow">Chapter XI</p>
+        <h1 class="monk-h1">Joy</h1>
+        <div class="monk-card">
+          <p class="monk-prompt" id="joy-prompt"></p>
+          <button class="monk-btn primary" id="joy-done">I Did This</button>
+          <button class="monk-btn" id="joy-new">Random Joy</button>
+        </div>
+      </section>
+
+      <!-- JOURNAL -->
+      <section class="monk-section" id="sec-journal" data-title="Journal">
+        <p class="monk-eyebrow">Chapter XII</p>
+        <h1 class="monk-h1">Journal</h1>
+        <textarea class="monk-textarea" id="journal-text" placeholder="Write today's entry..."></textarea>
+        <button class="monk-btn primary" id="journal-save">Save Entry</button>
+        <h2 class="monk-h2">Entries</h2>
+        <div id="journal-entries"></div>
+      </section>
+
+      <!-- RANDOM PRACTICE -->
+      <section class="monk-section" id="sec-random" data-title="Random Practice">
+        <p class="monk-eyebrow">Chapter XIII</p>
+        <h1 class="monk-h1">Random Practice</h1>
+        <button class="monk-btn primary" id="random-generate">Give Me Today's Practice</button>
+        <div class="monk-card" id="random-card" style="display:none">
+          <ul class="monk-card-list" id="random-list"></ul>
+          <button class="monk-btn primary" id="random-done">Mark Today's Practice Complete</button>
+        </div>
+      </section>
+
+      <!-- PROGRESS -->
+      <section class="monk-section" id="sec-progress" data-title="Progress">
+        <p class="monk-eyebrow">Chapter XIV</p>
+        <h1 class="monk-h1">Progress</h1>
+        <p class="monk-lede">A record, not a scoreboard. The purpose is reflection, not achievement.</p>
+        <div id="progress-bars"></div>
+      </section>
+
+    </div>
+  </main>
+</div>
+
+<script src="js/back4app-client.js"></script>
+<script src="js/monk-data.js"></script>
+<script src="js/monk-app.js"></script>
+</body>
+</html>
