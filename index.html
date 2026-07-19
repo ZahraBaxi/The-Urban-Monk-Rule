@@ -29,32 +29,41 @@
 
       <!-- HOME -->
       <section class="monk-section" id="sec-home" data-title="Home">
-        <p class="monk-eyebrow">Chapter I</p>
+        <p class="monk-eyebrow">Chapter I &middot; <span id="home-date"></span></p>
         <h1 class="monk-h1">Home</h1>
 
-        <div class="monk-home-block">
-          <p class="monk-home-label">Today</p>
-          <p class="monk-home-value" id="home-date"></p>
+        <!-- primary: today's vow, the one thing to act on -->
+        <div class="monk-hero" id="home-vow-card">
+          <p class="monk-hero-label">Today's Focus Vow</p>
+          <p class="monk-hero-text" id="home-vow"></p>
+          <button class="monk-btn primary" id="home-vow-btn">Mark as Kept</button>
         </div>
-        <div class="monk-home-block">
-          <p class="monk-home-label">From the Rule</p>
+
+        <!-- secondary: streak, at a glance -->
+        <div class="monk-streak-block">
+          <div class="monk-streak-header">
+            <span class="monk-home-label">Current Streak</span>
+            <span class="monk-home-value" id="home-streak"></span>
+          </div>
+          <div class="monk-streak-row" id="home-streak-dots"></div>
+        </div>
+
+        <!-- tertiary: a quote, cyclable but quiet -->
+        <div class="monk-quote-block">
           <p class="monk-quote" id="home-quote"></p>
+          <button class="monk-quiet-link" id="home-quote-new">Another Line</button>
         </div>
-        <div class="monk-home-block">
-          <p class="monk-home-label">Today's Focus Vow</p>
-          <p class="monk-home-value" id="home-vow"></p>
-        </div>
-        <div class="monk-home-block">
-          <p class="monk-home-label">Current Streak</p>
-          <p class="monk-home-value" id="home-streak"></p>
-        </div>
-        <div class="monk-home-block">
-          <p class="monk-home-label">Morning Reminder</p>
-          <p class="monk-home-value" id="home-morning-reminder"></p>
-        </div>
-        <div class="monk-home-block">
-          <p class="monk-home-label">Evening Reminder</p>
-          <p class="monk-home-value" id="home-evening-reminder"></p>
+
+        <!-- tertiary: reminders, doubling as a shortcut into Rhythm -->
+        <div class="monk-reminder-row">
+          <button class="monk-reminder" id="home-morning-reminder-btn">
+            <span class="monk-home-label">Morning</span>
+            <span id="home-morning-reminder"></span>
+          </button>
+          <button class="monk-reminder" id="home-evening-reminder-btn">
+            <span class="monk-home-label">Evening</span>
+            <span id="home-evening-reminder"></span>
+          </button>
         </div>
       </section>
 

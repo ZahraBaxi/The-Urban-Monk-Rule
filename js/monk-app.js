@@ -128,14 +128,74 @@
 
   /* ---------------- HOME ---------------- */
 
+  // Picked once per load (seeded so a reload same-day shows the same
+  // vow/quote); the quote can still be cycled by hand via its button.
+  var currentQuote = seededPick(MONK.quotes, todayStr + 'q');
+  var currentVowText = seededPick(MONK.vows, todayStr + 'v');
+
   function renderHome() {
     document.getElementById('home-date').textContent =
       new Date().toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
-    document.getElementById('home-quote').textContent = '"' + seededPick(MONK.quotes, todayStr + 'q') + '"';
-    document.getElementById('home-vow').textContent = seededPick(MONK.vows, todayStr + 'v');
+    document.getElementById('home-quote').textContent = '"' + currentQuote + '"';
+    document.getElementById('home-vow').textContent = currentVowText;
     document.getElementById('home-morning-reminder').textContent = MONK.morningReminder;
     document.getElementById('home-evening-reminder').textContent = MONK.eveningReminder;
-    document.getElementById('home-streak').textContent = computeStreak() + ' day' + (computeStreak() === 1 ? '' : 's');
+    refreshHomeDynamic();
+  }
+
+  // Just the parts that change as the day goes on — safe to call
+  // repeatedly (e.g. after a checklist toggle elsewhere) without
+  // resetting the quote or re-attaching any listeners.
+  function refreshHomeDynamic() {
+    var streak = computeStreak();
+    document.getElementById('home-streak').textContent = streak + ' day' + (streak === 1 ? '' : 's');
+    renderStreakDots();
+    renderVowState();
+  }
+
+  function renderStreakDots() {
+    var set = activeDateSet();
+    var html = '';
+    for (var i = 6; i >= 0; i--) {
+      var d = daysAgo(i);
+      var cls = 'monk-streak-dot' + (set[d] ? ' filled' : '') + (i === 0 ? ' today' : '');
+      html += '<span class="' + cls + '" title="' + d + '"></span>';
+    }
+    document.getElementById('home-streak-dots').innerHTML = html;
+  }
+
+  function vowKeptToday() {
+    return cache.activities.some(function (a) { return a.category === 'vow' && a.date === todayStr; });
+  }
+
+  function renderVowState() {
+    var card = document.getElementById('home-vow-card');
+    var btn = document.getElementById('home-vow-btn');
+    if (vowKeptToday()) {
+      card.classList.add('kept');
+      btn.textContent = 'Kept Today';
+      btn.disabled = true;
+    } else {
+      card.classList.remove('kept');
+      btn.textContent = 'Mark as Kept';
+      btn.disabled = false;
+    }
+  }
+
+  // Wired exactly once from renderAll() — never re-attached on
+  // later renderHome() calls, so a click can never double-fire.
+  function wireHomeInteractions() {
+    document.getElementById('home-vow-btn').addEventListener('click', function () {
+      if (vowKeptToday()) return;
+      logActivity('vow', currentVowText);
+      refreshHomeDynamic();
+    });
+    document.getElementById('home-quote-new').addEventListener('click', function () {
+      currentQuote = randomPick(MONK.quotes);
+      document.getElementById('home-quote').textContent = '"' + currentQuote + '"';
+    });
+    document.getElementById('home-morning-reminder-btn').addEventListener('click', function () { showSection('sec-rhythm'); });
+    document.getElementById('home-evening-reminder-btn').addEventListener('click', function () { showSection('sec-rhythm'); });
   }
 
   function activeDateSet() {
@@ -236,6 +296,29 @@
     createInClass('MonkPlaceNote', entry).catch(function (err) { console.warn('MonkPlaceNote save failed:', err.message); });
   });
 
+  /* ---------------- confirmation helper ---------------- */
+  // Shared by every "mark done" button: shows a brief "Logged" state
+  // and disables itself for that window, so a click always gives
+  // visible feedback and a rapid double-click (or any code path
+  // firing the handler more than once) can never log a duplicate.
+
+  function withConfirmation(btn, onConfirm, confirmLabel) {
+    var originalLabel = btn.textContent;
+    var busy = false;
+    btn.addEventListener('click', function () {
+      if (busy) return;
+      busy = true;
+      onConfirm();
+      btn.textContent = confirmLabel || 'Logged \u2713';
+      btn.disabled = true;
+      setTimeout(function () {
+        btn.textContent = originalLabel;
+        btn.disabled = false;
+        busy = false;
+      }, 1100);
+    });
+  }
+
   /* ---------------- PRESENCE / SOLITUDE / HUMILITY / STEWARDSHIP / JOY ---------------- */
   // Same shape: pick a random prompt, optional "done" logs an activity.
 
@@ -248,7 +331,7 @@
       el.textContent = current;
     });
     if (doneBtnId) {
-      document.getElementById(doneBtnId).addEventListener('click', function () {
+      withConfirmation(document.getElementById(doneBtnId), function () {
         logActivity(category, current);
       });
     }
@@ -274,7 +357,7 @@
     }
     select.addEventListener('change', pickNew);
     document.getElementById('learning-new').addEventListener('click', pickNew);
-    document.getElementById('learning-done').addEventListener('click', function () {
+    withConfirmation(document.getElementById('learning-done'), function () {
       logActivity('learning', select.value + ': ' + currentTopic);
     });
   }
@@ -295,7 +378,10 @@
         var tag = document.createElement('button');
         tag.className = 'monk-tag';
         tag.textContent = item;
+        var tagBusy = false;
         tag.addEventListener('click', function () {
+          if (tagBusy) return;
+          tagBusy = true;
           tag.classList.add('done');
           logActivity('craft', item);
         });
@@ -312,7 +398,7 @@
     document.getElementById('craft-prompt').textContent = cat + ': ' + currentCraft;
   }
   document.getElementById('craft-new').addEventListener('click', pickCraft);
-  document.getElementById('craft-done').addEventListener('click', function () {
+  withConfirmation(document.getElementById('craft-done'), function () {
     if (!currentCraft) { pickCraft(); return; }
     logActivity('craft', currentCraft);
   });
@@ -386,8 +472,14 @@
     }).join('');
 
     document.getElementById('random-card').style.display = 'block';
-    document.getElementById('random-done').onclick = function () {
+    var doneBtn = document.getElementById('random-done');
+    doneBtn.textContent = 'Mark Today\u2019s Practice Complete';
+    doneBtn.disabled = false;
+    doneBtn.onclick = function () {
+      doneBtn.onclick = null;
       logActivity('randomPractice', rhythmTask + ' / ' + observation + ' / ' + stewardship + ' / ' + craft + ' / ' + conversation + ' / ' + joy);
+      doneBtn.textContent = 'Logged \u2713';
+      doneBtn.disabled = true;
     };
   });
 
@@ -452,16 +544,19 @@
       cache.placeNotes = placeNotes.map(function (r) { return { objectId: r.objectId, date: r.date, prompt: r.prompt, note: r.note }; });
       cache.journalEntries = journalEntries.map(function (r) { return { objectId: r.objectId, date: r.date, text: r.text }; });
       cache.activities = activities.map(function (r) { return { objectId: r.objectId, date: r.date, category: r.category, label: r.label }; });
-
-      renderAll();
     }).catch(function (err) {
+      // Only catches problems loading/parsing the fetched data above.
+      // renderAll() itself is called exactly once below regardless of
+      // which branch ran, so a hiccup here can never double-wire buttons.
       console.warn('Could not load from Back4App, starting with an empty session:', err.message);
+    }).then(function () {
       renderAll();
     });
   }
 
   function renderAll() {
     renderHome();
+    wireHomeInteractions();
     renderRhythm();
     renderPlacePrompt();
     renderPlaceEntries();

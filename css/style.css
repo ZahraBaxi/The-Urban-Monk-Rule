@@ -146,13 +146,6 @@ html, body {
 
 /* ---------- home ---------- */
 
-.monk-home-block {
-  border-top: 1px solid var(--line);
-  padding: 18px 0;
-}
-
-.monk-home-block:last-child { border-bottom: 1px solid var(--line); }
-
 .monk-home-label {
   font-size: 0.72rem;
   letter-spacing: 0.06em;
@@ -167,10 +160,130 @@ html, body {
 }
 
 .monk-quote {
-  font-size: 1.15rem;
+  font-size: 1.1rem;
   font-style: normal;
   font-weight: 300;
   line-height: 1.5;
+  margin: 0 0 10px 0;
+}
+
+/* primary: the vow card. Largest, boldest thing on the page;
+   inverts to solid ink once kept, as the day's one visible reward. */
+
+.monk-hero {
+  border: 1px solid var(--line);
+  padding: 32px 28px;
+  margin: 0 0 40px 0;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.monk-hero-label {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.55;
+  margin: 0 0 14px 0;
+}
+
+.monk-hero-text {
+  font-size: 1.35rem;
+  font-weight: 300;
+  line-height: 1.4;
+  margin: 0 0 24px 0;
+}
+
+.monk-hero.kept {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.monk-hero.kept .monk-btn.primary {
+  background: var(--paper);
+  color: var(--ink);
+  border-color: var(--paper);
+  opacity: 1;
+  cursor: default;
+}
+
+/* secondary: streak, a quiet row of filled/hollow days */
+
+.monk-streak-block {
+  margin: 0 0 32px 0;
+}
+
+.monk-streak-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 0 0 10px 0;
+}
+
+.monk-streak-row {
+  display: flex;
+  gap: 6px;
+}
+
+.monk-streak-dot {
+  width: 14px;
+  height: 14px;
+  border: 1px solid var(--ink);
+}
+
+.monk-streak-dot.filled { background: var(--ink); }
+
+.monk-streak-dot.today { border-width: 2px; }
+
+/* tertiary: quote, with a low-emphasis text-link to cycle it */
+
+.monk-quote-block {
+  border-top: 1px solid var(--line);
+  padding: 24px 0;
+  margin: 0 0 32px 0;
+}
+
+.monk-quiet-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-family: 'Space Grotesk', sans-serif;
+  font-weight: 300;
+  font-size: 0.75rem;
+  letter-spacing: 0.03em;
+  text-decoration: underline;
+  color: var(--ink);
+  opacity: 0.5;
+  cursor: pointer;
+  transition: opacity 0.25s ease;
+}
+
+.monk-quiet-link:hover { opacity: 1; }
+
+/* tertiary: reminders, tucked at the bottom, double as a Rhythm shortcut */
+
+.monk-reminder-row {
+  display: flex;
+  gap: 14px;
+}
+
+.monk-reminder {
+  flex: 1;
+  text-align: left;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  padding: 16px;
+  cursor: pointer;
+  font-family: 'Space Grotesk', sans-serif;
+  color: var(--ink);
+  transition: opacity 0.25s ease;
+}
+
+.monk-reminder:hover { opacity: 0.6; }
+
+.monk-reminder span:last-child {
+  display: block;
+  font-size: 0.82rem;
+  font-weight: 300;
+  margin-top: 4px;
 }
 
 /* ---------- checklists ---------- */
