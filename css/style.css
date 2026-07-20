@@ -911,6 +911,122 @@ html, body {
   align-items: center;
 }
 
+/* ---------- dharma: sitting timer, breathing circle, mala ---------- */
+
+.monk-toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  margin-top: 18px;
+}
+
+.monk-toggle-row input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 15px;
+  height: 15px;
+  border: 1px solid var(--ink);
+  flex-shrink: 0;
+  cursor: pointer;
+  position: relative;
+}
+
+.monk-toggle-row input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 2px;
+  width: 7px;
+  height: 7px;
+  background: var(--ink);
+}
+
+.monk-breath-wrap {
+  display: flex;
+  justify-content: center;
+  margin: 34px 0 22px;
+}
+
+.monk-breath-circle {
+  width: 130px;
+  height: 130px;
+  border: 1px solid var(--ink);
+  border-radius: 50%;
+}
+
+.monk-breath-circle.running {
+  animation: monkBreathe 8s ease-in-out infinite;
+}
+
+@keyframes monkBreathe {
+  0%, 100% { transform: scale(0.72); opacity: 0.55; }
+  50% { transform: scale(1); opacity: 1; }
+}
+
+.monk-sit-instruction {
+  text-align: center;
+  font-size: 0.85rem;
+  color: var(--faint);
+  margin: 0 0 8px 0;
+}
+
+.monk-sit-timer {
+  text-align: center;
+  font-family: 'Space Grotesk', sans-serif;
+  font-size: 2.4rem;
+  font-weight: 300;
+  letter-spacing: 0.02em;
+  margin: 0 0 22px 0;
+}
+
+#dharma-sit-active .monk-btn {
+  display: block;
+  margin: 0 auto;
+}
+
+.monk-mala-card {
+  text-align: center;
+}
+
+.monk-mala-counter {
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  margin: 0 auto 18px;
+  font-family: 'Space Grotesk', sans-serif;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.monk-mala-counter:active { opacity: 0.6; }
+
+.monk-mala-counter.complete {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.monk-mala-n {
+  font-size: 2.2rem;
+  font-weight: 500;
+}
+
+.monk-mala-label {
+  font-size: 0.68rem;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: inherit;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
 /* ---------- utility ---------- */
 
 .monk-note {

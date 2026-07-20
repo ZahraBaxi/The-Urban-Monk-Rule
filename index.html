@@ -78,6 +78,10 @@
             <span class="monk-home-label">Evening</span>
             <span id="home-evening-reminder"></span>
           </button>
+          <button class="monk-reminder" id="home-dharma-reminder-btn">
+            <span class="monk-home-label">Sit</span>
+            <span id="home-dharma-reminder"></span>
+          </button>
         </div>
       </section>
 
@@ -89,6 +93,80 @@
         <ul class="monk-checklist" id="rhythm-morning"></ul>
         <h2 class="monk-h2">Evening</h2>
         <ul class="monk-checklist" id="rhythm-evening"></ul>
+      </section>
+
+      <!-- DHARMA -->
+      <section class="monk-section" id="sec-dharma" data-title="Dharma">
+        <p class="monk-eyebrow"><span class="chapter-eyebrow-num"></span></p>
+        <h1 class="monk-h1">Dharma</h1>
+        <p class="monk-lede">A quiet room for practice, not performance. None of this needs to be perfect, or even daily.</p>
+
+        <h2 class="monk-h2">Refuge</h2>
+        <div class="monk-card">
+          <p class="monk-prompt">Buddha, Dharma, Sangha \u2014 the teacher, the teaching, and the community that holds it. Taking refuge is just remembering you're not doing this alone.</p>
+          <button class="monk-btn primary" id="dharma-refuge-btn">I Take Refuge Today</button>
+        </div>
+
+        <h2 class="monk-h2">Sit</h2>
+        <div class="monk-card">
+          <div id="dharma-sit-setup">
+            <p class="monk-home-label" style="margin-bottom:10px">Practice</p>
+            <div class="monk-tag-row" id="dharma-practice-row"></div>
+            <p class="monk-home-label" style="margin:20px 0 10px">Length</p>
+            <div class="monk-tag-row" id="dharma-duration-row"></div>
+            <label class="monk-toggle-row">
+              <input type="checkbox" id="dharma-visual-toggle" checked>
+              <span>Show the breathing circle</span>
+            </label>
+            <button class="monk-btn primary" id="dharma-sit-start" style="margin-top:18px">Begin Sitting</button>
+          </div>
+          <div id="dharma-sit-active" style="display:none">
+            <div class="monk-breath-wrap">
+              <div class="monk-breath-circle" id="dharma-breath-circle"></div>
+            </div>
+            <p class="monk-sit-instruction">A soft place to rest your eyes \u2014 not a pace to follow.</p>
+            <p class="monk-sit-timer" id="dharma-sit-timer">10:00</p>
+            <button class="monk-btn" id="dharma-sit-end">End Sitting</button>
+          </div>
+          <p class="monk-note" id="dharma-sit-stats"></p>
+        </div>
+
+        <h2 class="monk-h2">Loving-Kindness</h2>
+        <div class="monk-card">
+          <p class="monk-home-label" id="dharma-metta-stage" style="margin-bottom:10px"></p>
+          <p class="monk-quote" id="dharma-metta-phrase"></p>
+          <button class="monk-quiet-link" id="dharma-metta-next">Next Phrase</button>
+        </div>
+
+        <h2 class="monk-h2">Mala</h2>
+        <div class="monk-card monk-mala-card">
+          <button class="monk-mala-counter" id="dharma-mala-btn" type="button">
+            <span class="monk-mala-n" id="dharma-mala-n">0</span>
+            <span class="monk-mala-label">of 108</span>
+          </button>
+          <p class="monk-note" id="dharma-mala-stats"></p>
+          <button class="monk-quiet-link" id="dharma-mala-reset">Reset Count</button>
+        </div>
+
+        <h2 class="monk-h2">A Verse for the Moment</h2>
+        <div class="monk-card">
+          <p class="monk-quote" id="dharma-gatha"></p>
+          <button class="monk-quiet-link" id="dharma-gatha-new">Another Verse</button>
+        </div>
+
+        <h2 class="monk-h2">Today's Precepts</h2>
+        <p class="monk-lede">Not a scorecard \u2014 just five things worth holding in mind today.</p>
+        <ul class="monk-checklist" id="dharma-precepts"></ul>
+
+        <h2 class="monk-h2">Contemplation</h2>
+        <div class="monk-card">
+          <p class="monk-prompt" id="dharma-prompt"></p>
+          <textarea class="monk-textarea" id="dharma-note" placeholder="Sit with it a moment, then write..."></textarea>
+          <button class="monk-btn primary" id="dharma-save">Save Reflection</button>
+          <button class="monk-btn" id="dharma-new">New Prompt</button>
+        </div>
+        <h2 class="monk-h2">Past Reflections</h2>
+        <div id="dharma-entries"></div>
       </section>
 
       <!-- PLACE -->

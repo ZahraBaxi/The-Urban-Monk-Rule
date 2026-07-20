@@ -24,6 +24,11 @@
                            note, page
      MonkWishlistItem    — wishlist: name, price, note, dateAdded,
                            checks (purpose/aesthetic/notPlastic)
+     MonkDharmaEntry     — contemplation journal: date, prompt, note
+
+   MonkDay also carries a third checklist field, preceptItems,
+   for the Dharma chapter's daily precept reflections — same
+   shape as morningItems/eveningItems.
 
    The Wishlist chapter's daily savings rate isn't Back4App data —
    it's just a pacing number, stored in localStorage under
@@ -49,7 +54,8 @@
     watchlist: [],
     books: [],
     bookNotes: [],
-    wishlist: []
+    wishlist: [],
+    dharmaEntries: []
   };
 
   /* ---------------- date helpers ---------------- */
@@ -111,7 +117,9 @@
     stewardship: makeBag(MONK.stewardshipActs),
     joy: makeBag(MONK.joys),
     craft: makeBag(flattenCraft()),
-    rhythmTask: makeBag(MONK.rhythm.morning.concat(MONK.rhythm.evening))
+    rhythmTask: makeBag(MONK.rhythm.morning.concat(MONK.rhythm.evening)),
+    gatha: makeBag(MONK.gathas),
+    dharma: makeBag(MONK.dharmaPrompts)
   };
   var learningBags = {};
   function learningBag(cat) {
@@ -191,7 +199,7 @@
         console.warn('MonkDay update failed:', err.message);
       });
     } else {
-      var payload = { date: todayStr, morningItems: [], eveningItems: [] };
+      var payload = { date: todayStr, morningItems: [], eveningItems: [], preceptItems: [] };
       payload[field] = items;
       createInClass('MonkDay', payload).then(function (res) {
         cache.days[todayStr] = Object.assign({ objectId: res.objectId }, payload);
@@ -225,6 +233,7 @@
     document.getElementById('home-question').textContent = currentWorldQuestion;
     document.getElementById('home-morning-reminder').textContent = MONK.morningReminder;
     document.getElementById('home-evening-reminder').textContent = MONK.eveningReminder;
+    document.getElementById('home-dharma-reminder').textContent = MONK.dharmaReminder;
     refreshHomeDynamic();
   }
 
@@ -281,6 +290,7 @@
     });
     document.getElementById('home-morning-reminder-btn').addEventListener('click', function () { showSection('sec-rhythm'); });
     document.getElementById('home-evening-reminder-btn').addEventListener('click', function () { showSection('sec-rhythm'); });
+    document.getElementById('home-dharma-reminder-btn').addEventListener('click', function () { showSection('sec-dharma'); });
 
     // World Question: the actual reason to open this page. Cyclable,
     // and answerable inline — a reply saves straight into the Journal
@@ -318,11 +328,12 @@
     var set = {};
     Object.keys(cache.days).forEach(function (d) {
       var day = cache.days[d];
-      if ((day.morningItems && day.morningItems.length) || (day.eveningItems && day.eveningItems.length)) set[d] = true;
+      if ((day.morningItems && day.morningItems.length) || (day.eveningItems && day.eveningItems.length) || (day.preceptItems && day.preceptItems.length)) set[d] = true;
     });
     cache.placeNotes.forEach(function (n) { set[n.date] = true; });
     cache.journalEntries.forEach(function (j) { set[j.date] = true; });
     cache.activities.forEach(function (a) { set[a.date] = true; });
+    cache.dharmaEntries.forEach(function (n) { set[n.date] = true; });
     return set;
   }
 
@@ -372,6 +383,203 @@
         renderHome();
         renderProgress();
       });
+    });
+  }
+
+  /* ---------------- DHARMA ---------------- */
+
+  var sitState = { practiceId: MONK.meditationPractices[0].id, duration: MONK.sitDefaultDuration, remaining: 0, total: 0, intervalId: null };
+  var mettaIndex = 0;
+  var malaCount = 0;
+  var currentGatha = bags.gatha();
+  var currentDharmaPrompt = bags.dharma();
+
+  function formatClock(totalSeconds) {
+    var m = Math.floor(totalSeconds / 60);
+    var s = totalSeconds % 60;
+    return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+  }
+
+  function sitMinutesFromLabel(label) {
+    var m = /([0-9]+)\s*min/.exec(label || '');
+    return m ? parseInt(m[1], 10) : 0;
+  }
+
+  function renderSitChoices() {
+    var practiceRow = document.getElementById('dharma-practice-row');
+    practiceRow.innerHTML = '';
+    MONK.meditationPractices.forEach(function (p) {
+      var btn = document.createElement('button');
+      btn.className = 'monk-tag' + (p.id === sitState.practiceId ? ' done' : '');
+      btn.textContent = p.label;
+      btn.title = p.note;
+      btn.addEventListener('click', function () {
+        sitState.practiceId = p.id;
+        renderSitChoices();
+      });
+      practiceRow.appendChild(btn);
+    });
+
+    var durationRow = document.getElementById('dharma-duration-row');
+    durationRow.innerHTML = '';
+    MONK.sitDurations.forEach(function (n) {
+      var btn = document.createElement('button');
+      btn.className = 'monk-tag' + (n === sitState.duration ? ' done' : '');
+      btn.textContent = n + ' min';
+      btn.addEventListener('click', function () {
+        sitState.duration = n;
+        renderSitChoices();
+      });
+      durationRow.appendChild(btn);
+    });
+  }
+
+  function renderSitStats() {
+    var sits = cache.activities.filter(function (a) { return a.category === 'meditation'; });
+    var totalMinutes = sits.reduce(function (sum, a) { return sum + sitMinutesFromLabel(a.label); }, 0);
+    document.getElementById('dharma-sit-stats').textContent = sits.length
+      ? ('You\u2019ve sat ' + sits.length + ' time' + (sits.length === 1 ? '' : 's') + ', ' + totalMinutes + ' minute' + (totalMinutes === 1 ? '' : 's') + ' total.')
+      : 'No sits logged yet \u2014 begin when you\u2019re ready.';
+  }
+
+  function endSit(completed) {
+    clearInterval(sitState.intervalId);
+    var elapsedSeconds = sitState.total - sitState.remaining;
+    var elapsedMinutes = Math.round(elapsedSeconds / 60);
+    var practice = MONK.meditationPractices.filter(function (p) { return p.id === sitState.practiceId; })[0];
+    var label = completed
+      ? practice.label + ' \u2014 ' + sitState.duration + ' min'
+      : practice.label + ' \u2014 ' + elapsedMinutes + ' of ' + sitState.duration + ' min';
+    if (completed || elapsedMinutes > 0) logActivity('meditation', label);
+    playBell();
+    document.getElementById('dharma-breath-circle').classList.remove('running');
+    document.getElementById('dharma-sit-active').style.display = 'none';
+    document.getElementById('dharma-sit-setup').style.display = 'block';
+    renderSitStats();
+    renderProgress();
+  }
+
+  function renderMetta() {
+    var item = MONK.mettaSequence[mettaIndex];
+    document.getElementById('dharma-metta-stage').textContent = item.stage;
+    document.getElementById('dharma-metta-phrase').textContent = item.phrase;
+  }
+
+  function renderMalaStats() {
+    var rounds = cache.activities.filter(function (a) { return a.category === 'mala-round'; }).length;
+    document.getElementById('dharma-mala-stats').textContent = rounds
+      ? (rounds + ' round' + (rounds === 1 ? '' : 's') + ' completed.')
+      : 'A round is 108 \u2014 tap along with a mantra, a breath, or just a beat.';
+  }
+
+  function renderGatha() {
+    document.getElementById('dharma-gatha').textContent = currentGatha;
+  }
+
+  function renderPrecepts() {
+    var day = cache.days[todayStr] || { preceptItems: [] };
+    renderChecklist('dharma-precepts', MONK.precepts, day.preceptItems || [], 'preceptItems');
+  }
+
+  function renderDharmaPrompt() {
+    document.getElementById('dharma-prompt').textContent = currentDharmaPrompt;
+  }
+  function renderDharmaEntries() {
+    var wrap = document.getElementById('dharma-entries');
+    wrap.innerHTML = '';
+    if (!cache.dharmaEntries.length) { wrap.innerHTML = '<p class="monk-empty">No reflections yet.</p>'; return; }
+    cache.dharmaEntries.slice().reverse().forEach(function (n) {
+      var div = document.createElement('div');
+      div.className = 'monk-entry';
+      div.innerHTML = '<p class="monk-entry-date">' + n.date + ' &middot; ' + n.prompt + '</p><p class="monk-entry-body"></p>';
+      div.querySelector('.monk-entry-body').textContent = n.note;
+      wrap.appendChild(div);
+    });
+  }
+
+  function renderDharma() {
+    renderSitChoices();
+    renderSitStats();
+    renderMetta();
+    renderMalaStats();
+    renderGatha();
+    renderPrecepts();
+    renderDharmaPrompt();
+    renderDharmaEntries();
+  }
+
+  // Wired once — the sit timer especially can't tolerate being
+  // re-attached on every render, or a tick would fire multiple times.
+  function wireDharmaInteractions() {
+    withConfirmation(document.getElementById('dharma-refuge-btn'), function () {
+      logActivity('refuge', '');
+    }, 'Refuge Taken \u2713');
+
+    document.getElementById('dharma-sit-start').addEventListener('click', function () {
+      sitState.total = sitState.duration * 60;
+      sitState.remaining = sitState.total;
+      document.getElementById('dharma-sit-setup').style.display = 'none';
+      document.getElementById('dharma-sit-active').style.display = 'block';
+      document.getElementById('dharma-sit-timer').textContent = formatClock(sitState.remaining);
+      var circle = document.getElementById('dharma-breath-circle');
+      circle.classList.toggle('running', document.getElementById('dharma-visual-toggle').checked);
+      playBell();
+      sitState.intervalId = setInterval(function () {
+        sitState.remaining--;
+        document.getElementById('dharma-sit-timer').textContent = formatClock(sitState.remaining);
+        if (sitState.remaining <= 0) endSit(true);
+      }, 1000);
+    });
+    document.getElementById('dharma-sit-end').addEventListener('click', function () { endSit(false); });
+
+    document.getElementById('dharma-metta-next').addEventListener('click', function () {
+      mettaIndex = (mettaIndex + 1) % MONK.mettaSequence.length;
+      renderMetta();
+    });
+
+    document.getElementById('dharma-mala-btn').addEventListener('click', function () {
+      malaCount++;
+      document.getElementById('dharma-mala-n').textContent = malaCount;
+      if (malaCount >= 108) {
+        var btn = document.getElementById('dharma-mala-btn');
+        btn.classList.add('complete');
+        playBell();
+        logActivity('mala-round', '');
+        renderProgress();
+        setTimeout(function () {
+          malaCount = 0;
+          document.getElementById('dharma-mala-n').textContent = malaCount;
+          btn.classList.remove('complete');
+          renderMalaStats();
+        }, 900);
+      }
+    });
+    document.getElementById('dharma-mala-reset').addEventListener('click', function () {
+      malaCount = 0;
+      document.getElementById('dharma-mala-n').textContent = malaCount;
+      document.getElementById('dharma-mala-btn').classList.remove('complete');
+    });
+
+    document.getElementById('dharma-gatha-new').addEventListener('click', function () {
+      currentGatha = bags.gatha();
+      renderGatha();
+    });
+
+    document.getElementById('dharma-new').addEventListener('click', function () {
+      currentDharmaPrompt = bags.dharma();
+      renderDharmaPrompt();
+    });
+    document.getElementById('dharma-save').addEventListener('click', function () {
+      var textarea = document.getElementById('dharma-note');
+      var text = textarea.value.trim();
+      if (!text) return;
+      var entry = { date: todayStr, prompt: currentDharmaPrompt, note: text };
+      cache.dharmaEntries.push(entry);
+      textarea.value = '';
+      renderDharmaEntries();
+      renderHome();
+      renderProgress();
+      createInClass('MonkDharmaEntry', entry).catch(function (err) { console.warn('MonkDharmaEntry save failed:', err.message); });
     });
   }
 
@@ -432,6 +640,38 @@
         btn.disabled = false;
         busy = false;
       }, 1100);
+    });
+  }
+
+  /* ---------------- bell chime (sit timer + mala) ---------------- */
+  // A soft, decaying tone built from a fundamental plus two quiet
+  // overtones — no audio file needed, and it only ever fires from a
+  // real click, so autoplay restrictions are never a problem.
+
+  var bellCtx = null;
+  function playBell() {
+    var AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    if (!bellCtx) {
+      try { bellCtx = new AC(); } catch (e) { return; }
+    }
+    var ctx = bellCtx;
+    var now = ctx.currentTime;
+    var master = ctx.createGain();
+    master.gain.setValueAtTime(0.0001, now);
+    master.gain.exponentialRampToValueAtTime(0.32, now + 0.02);
+    master.gain.exponentialRampToValueAtTime(0.0001, now + 3.2);
+    master.connect(ctx.destination);
+    [480, 725, 1200].forEach(function (freq, i) {
+      var osc = ctx.createOscillator();
+      osc.type = 'sine';
+      osc.frequency.value = freq;
+      var partial = ctx.createGain();
+      partial.gain.value = i === 0 ? 1 : 0.3 / (i + 1);
+      osc.connect(partial);
+      partial.connect(master);
+      osc.start(now);
+      osc.stop(now + 3.3);
     });
   }
 
@@ -1180,6 +1420,12 @@
     var booksFinished = cache.activities.filter(function (a) { return a.category === 'book-finished'; }).length;
     var passagesSaved = cache.bookNotes.length;
     var itemsBought = cache.activities.filter(function (a) { return a.category === 'wishlist-bought'; }).length;
+    var sitsCompleted = cache.activities.filter(function (a) { return a.category === 'meditation'; }).length;
+    var minutesMeditated = cache.activities
+      .filter(function (a) { return a.category === 'meditation'; })
+      .reduce(function (sum, a) { return sum + sitMinutesFromLabel(a.label); }, 0);
+    var malaRounds = cache.activities.filter(function (a) { return a.category === 'mala-round'; }).length;
+    var contemplationsWritten = cache.dharmaEntries.length;
 
     var rows = [
       ['Checklist items completed', checklistCompleted],
@@ -1192,7 +1438,11 @@
       ['Solitude practices', solitudeCount],
       ['Books finished', booksFinished],
       ['Passages saved', passagesSaved],
-      ['Wishlist purchases (after waiting)', itemsBought]
+      ['Wishlist purchases (after waiting)', itemsBought],
+      ['Sits completed', sitsCompleted],
+      ['Minutes meditated', minutesMeditated],
+      ['Mala rounds completed', malaRounds],
+      ['Contemplations written', contemplationsWritten]
     ];
     var max = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
 
@@ -1219,17 +1469,20 @@
       fetchClass('MonkWatchlistItem').catch(function () { return []; }),
       fetchClass('MonkBook').catch(function () { return []; }),
       fetchClass('MonkBookNote', 'date').catch(function () { return []; }),
-      fetchClass('MonkWishlistItem').catch(function () { return []; })
+      fetchClass('MonkWishlistItem').catch(function () { return []; }),
+      fetchClass('MonkDharmaEntry', 'date').catch(function () { return []; })
     ]).then(function (results) {
       var days = results[0], placeNotes = results[1], journalEntries = results[2], activities = results[3];
       var plants = results[4], sourdoughLog = results[5], watchlist = results[6];
       var books = results[7], bookNotes = results[8], wishlistItems = results[9];
+      var dharmaEntries = results[10];
       days.forEach(function (row) {
         cache.days[row.date] = {
           objectId: row.objectId,
           date: row.date,
           morningItems: row.morningItems || [],
-          eveningItems: row.eveningItems || []
+          eveningItems: row.eveningItems || [],
+          preceptItems: row.preceptItems || []
         };
       });
       cache.placeNotes = placeNotes.map(function (r) { return { objectId: r.objectId, date: r.date, prompt: r.prompt, note: r.note }; });
@@ -1253,6 +1506,7 @@
         MONK.wishlistChecks.forEach(function (c) { checks[c.id] = !!(r.checks && r.checks[c.id]); });
         return { objectId: r.objectId, name: r.name, price: r.price || '', note: r.note || '', dateAdded: r.dateAdded || todayStr, checks: checks };
       });
+      cache.dharmaEntries = dharmaEntries.map(function (r) { return { objectId: r.objectId, date: r.date, prompt: r.prompt, note: r.note }; });
     }).catch(function (err) {
       // Only catches problems loading/parsing the fetched data above.
       // renderAll() itself is called exactly once below regardless of
@@ -1267,6 +1521,8 @@
     renderHome();
     wireHomeInteractions();
     renderRhythm();
+    renderDharma();
+    wireDharmaInteractions();
     renderPlacePrompt();
     renderPlaceEntries();
     wireRandomCard('presence-prompt', 'presence-new', 'presence-done', bags.presence, 'presence');

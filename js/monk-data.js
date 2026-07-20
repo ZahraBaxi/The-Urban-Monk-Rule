@@ -333,3 +333,105 @@ MONK.watchlistStarter = [
   { title: "Minimalism: A Documentary About the Important Things", note: "" }
 ];
 
+/* ============================================================
+   DHARMA — Buddhist practice content.
+   Framed as practice, not performance: nothing here is meant to
+   be kept perfectly or daily. The Five Precepts are phrased as
+   intentions to hold in mind, not a scorecard.
+   ============================================================ */
+
+// The five precepts (pañcasīla), phrased as intentions rather than
+// rules to enforce.
+MONK.precepts = [
+  { id: "pc1", label: "To do no harm, to any living being" },
+  { id: "pc2", label: "To take only what is freely given" },
+  { id: "pc3", label: "To act with care in how I relate to others" },
+  { id: "pc4", label: "To speak truthfully" },
+  { id: "pc5", label: "To keep my mind clear" }
+];
+
+// Four common approaches to sitting practice — enough variety
+// without overwhelming someone new to it.
+MONK.meditationPractices = [
+  { id: "breath", label: "Breath Awareness", note: "Resting attention on the breath, as it actually is \u2014 not controlling it." },
+  { id: "metta", label: "Loving-Kindness", note: "Extending goodwill outward, beginning with yourself." },
+  { id: "body", label: "Body Scan", note: "Moving attention slowly through the body, noticing what's there without changing it." },
+  { id: "open", label: "Open Awareness", note: "Resting in awareness itself, without fixing on any one object." }
+];
+
+MONK.sitDurations = [5, 10, 15, 20, 30]; // minutes
+MONK.sitDefaultDuration = 10;
+
+// A loving-kindness (metta) sequence: the traditional widening
+// circle from yourself outward. Walked through in order, not
+// shuffled — the order is the point.
+MONK.mettaSequence = [
+  { stage: "For yourself", phrase: "May I be safe." },
+  { stage: "For yourself", phrase: "May I be healthy." },
+  { stage: "For yourself", phrase: "May I be at ease." },
+  { stage: "For yourself", phrase: "May I be free from suffering." },
+  { stage: "For someone you love", phrase: "May you be safe." },
+  { stage: "For someone you love", phrase: "May you be healthy." },
+  { stage: "For someone you love", phrase: "May you be at ease." },
+  { stage: "For someone you love", phrase: "May you be free from suffering." },
+  { stage: "For someone neutral to you", phrase: "May you be safe." },
+  { stage: "For someone neutral to you", phrase: "May you be healthy." },
+  { stage: "For someone neutral to you", phrase: "May you be at ease." },
+  { stage: "For someone neutral to you", phrase: "May you be free from suffering." },
+  { stage: "For someone you find difficult", phrase: "May you be safe." },
+  { stage: "For someone you find difficult", phrase: "May you be healthy." },
+  { stage: "For someone you find difficult", phrase: "May you be at ease." },
+  { stage: "For someone you find difficult", phrase: "May you be free from suffering." },
+  { stage: "For all beings, everywhere", phrase: "May all beings be safe." },
+  { stage: "For all beings, everywhere", phrase: "May all beings be healthy." },
+  { stage: "For all beings, everywhere", phrase: "May all beings be at ease." },
+  { stage: "For all beings, everywhere", phrase: "May all beings be free from suffering." }
+];
+
+// Short verses to carry an ordinary action into attention. Original
+// lines written for this app, in the spirit of a mindfulness gatha
+// rather than any single tradition's exact wording.
+MONK.gathas = [
+  "Washing my hands, I let the water carry off more than dust.",
+  "Opening the door, I step into a moment I haven't lived before.",
+  "Watching water boil, I let my thoughts rise the same way, and let them be enough.",
+  "Turning the key, I arrive whole instead of arriving in pieces.",
+  "Sitting down to eat, I remember this food took a whole world to reach me.",
+  "Before I answer the phone, I let one ring pass, and arrive first.",
+  "Tying my shoes, I tie my attention along with the laces.",
+  "Waiting for the light to change, I let the waiting be the whole practice.",
+  "Folding laundry, I fold without also folding tomorrow into today.",
+  "Closing my eyes to sleep, I let today go, the way a hand opens.",
+  "Walking to the door, I let this step be the only step there is.",
+  "Pouring tea, I pour my attention in along with the water.",
+  "Hearing a bell, I return \u2014 without judging how far I'd wandered.",
+  "Feeling the ground underfoot, I remember I am held before I do anything at all.",
+  "Breathing in, I feel this breath fill me. Breathing out, I let it go, and keep none of it."
+];
+
+// Prompts for a post-sit or any-time contemplation entry — drawn
+// loosely from core themes (impermanence, non-attachment, the
+// present moment) rather than doctrine to be tested on.
+MONK.dharmaPrompts = [
+  "What did you notice changing while you sat, even in stillness?",
+  "What are you gripping today that you could hold more loosely?",
+  "Where did your mind go when you weren't watching it?",
+  "What arose during your sit that you didn't invite, and didn't push away?",
+  "What's something you're calling 'mine' that you're only borrowing for a while?",
+  "Where in your body is today's tension actually living?",
+  "What would it look like to want this moment less and notice it more?",
+  "What small suffering today came from wanting something to be different than it was?",
+  "Who or what are you depending on today that you rarely acknowledge?",
+  "What's a thought you keep returning to, and what does it want from you?",
+  "What did you resist today that might have just been asking to be felt?",
+  "Where did you find ease today without earning it?",
+  "What are you afraid to let go of, even though it's already passing?",
+  "What did impermanence look like today \u2014 in your mood, your body, your plans?",
+  "If this moment is already complete as it is, what does that change?",
+  "Who did you find difficult today, and what might they be carrying?",
+  "What did your breath teach you today that your thoughts didn't?",
+  "Where did you mistake a passing feeling for a permanent fact?"
+];
+
+MONK.dharmaReminder = "Even five minutes counts. The sitting doesn't have to be good to be worth doing.";
+
