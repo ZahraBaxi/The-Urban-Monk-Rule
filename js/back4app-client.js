@@ -1,5 +1,5 @@
 /* ============================================================
-   back4app-client.js — The Urban Monk Rule
+   back4app-client.js, The Urban Monk Rule
 
    Same Back4App app/keys as the wardrobe project (reusing that
    connection rather than standing up a new app), and the same

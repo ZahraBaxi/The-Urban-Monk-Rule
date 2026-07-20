@@ -1,5 +1,5 @@
 /* ============================================================
-   style.css — "The Urban Monk Rule"
+   style.css, "The Urban Monk Rule"
    Black and white. Space Grotesk only. Nothing decorative
    unless it serves a purpose. No rounded corners, no shadows,
    no gradients, no animation beyond a subtle hover fade.
@@ -205,7 +205,7 @@ html, body {
   cursor: default;
 }
 
-/* primary: today's question — reflection, not a task */
+/* primary: today's question, reflection, not a task */
 
 .monk-question-block {
   border: 1px solid var(--line);

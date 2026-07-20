@@ -1,37 +1,36 @@
 /* ============================================================
    monk-app.js
-   "The Urban Monk Rule" — navigation + interactions.
+   "The Urban Monk Rule", navigation + interactions.
 
    Storage: uses this project's own js/back4app-client.js
    (its own Back4App app, entirely separate from any other
    project) via the generic fetchClass / createInClass /
    updateInClass helpers, against these classes:
 
-     MonkDay             — one row per date: checklist state
-     MonkPlaceNote       — observation notes
-     MonkJournalEntry    — journal entries
-     MonkActivity        — every other logged practice (craft,
+     MonkDay, one row per date: checklist state
+     MonkPlaceNote, observation notes
+     MonkJournalEntry, journal entries
+     MonkActivity, every other logged practice (craft,
                            joy, solitude, stewardship, learning,
                            presence, attention taps, random
                            practice, vow, sourdough recipes tried,
                            watchlist items watched, plant stage
                            advances)
-     MonkPlant           — plants: name, species, current stage
-     MonkSourdoughFeeding — starter feeding log
-     MonkWatchlistItem   — watchlist: title, note, watched
-     MonkBook            — reading list: title, author, status
-     MonkBookNote        — annotations against a book: quote,
+     MonkPlant, plants: name, species, current stage
+     MonkSourdoughFeeding, starter feeding log
+     MonkWatchlistItem, watchlist: title, note, watched
+     MonkBook, reading list: title, author, status
+     MonkBookNote, annotations against a book: quote,
                            note, page
-     MonkWishlistItem    — wishlist: name, price, note, dateAdded,
+     MonkWishlistItem, wishlist: name, price, note, dateAdded,
                            checks (purpose/aesthetic/notPlastic)
-     MonkDharmaEntry     — contemplation journal: date, prompt, note
+     MonkDharmaEntry, contemplation journal: date, prompt, note
 
    MonkDay also carries a third checklist field, preceptItems,
-   for the Dharma chapter's daily precept reflections — same
+   for the Dharma chapter's daily precept reflections, same
    shape as morningItems/eveningItems.
 
-   The Wishlist chapter's daily savings rate isn't Back4App data —
-   it's just a pacing number, stored in localStorage under
+   The Wishlist chapter's daily savings rate isn't Back4App data, it's just a pacing number, stored in localStorage under
    'monkWishlistDailyRate'.
 
    If Back4App is unreachable (offline, keys not filled in
@@ -149,7 +148,7 @@
     mobileNav.appendChild(opt);
 
     // Keep each section's own "Chapter N" eyebrow in lockstep with
-    // the sidebar numbering — both come from this same loop, so
+    // the sidebar numbering, both come from this same loop, so
     // inserting or reordering a chapter can never desync the two.
     var eyebrowNum = sec.querySelector('.chapter-eyebrow-num');
     if (eyebrowNum) eyebrowNum.textContent = 'Chapter ' + romanNumeral(i + 1);
@@ -237,7 +236,7 @@
     refreshHomeDynamic();
   }
 
-  // Just the parts that change as the day goes on — safe to call
+  // Just the parts that change as the day goes on, safe to call
   // repeatedly (e.g. after a checklist toggle elsewhere) without
   // resetting the quote or re-attaching any listeners.
   function refreshHomeDynamic() {
@@ -276,7 +275,7 @@
     }
   }
 
-  // Wired exactly once from renderAll() — never re-attached on
+  // Wired exactly once from renderAll(), never re-attached on
   // later renderHome() calls, so a click can never double-fire.
   function wireHomeInteractions() {
     document.getElementById('home-vow-btn').addEventListener('click', function () {
@@ -293,7 +292,7 @@
     document.getElementById('home-dharma-reminder-btn').addEventListener('click', function () { showSection('sec-dharma'); });
 
     // World Question: the actual reason to open this page. Cyclable,
-    // and answerable inline — a reply saves straight into the Journal
+    // and answerable inline, a reply saves straight into the Journal
     // tagged with the question, so reflection and journaling are one
     // motion instead of two.
     document.getElementById('home-question-new').addEventListener('click', function () {
@@ -439,7 +438,7 @@
     var totalMinutes = sits.reduce(function (sum, a) { return sum + sitMinutesFromLabel(a.label); }, 0);
     document.getElementById('dharma-sit-stats').textContent = sits.length
       ? ('You\u2019ve sat ' + sits.length + ' time' + (sits.length === 1 ? '' : 's') + ', ' + totalMinutes + ' minute' + (totalMinutes === 1 ? '' : 's') + ' total.')
-      : 'No sits logged yet \u2014 begin when you\u2019re ready.';
+      : 'No sits logged yet. Begin when you\u2019re ready.';
   }
 
   function endSit(completed) {
@@ -448,8 +447,8 @@
     var elapsedMinutes = Math.round(elapsedSeconds / 60);
     var practice = MONK.meditationPractices.filter(function (p) { return p.id === sitState.practiceId; })[0];
     var label = completed
-      ? practice.label + ' \u2014 ' + sitState.duration + ' min'
-      : practice.label + ' \u2014 ' + elapsedMinutes + ' of ' + sitState.duration + ' min';
+      ? practice.label + ', ' + sitState.duration + ' min'
+      : practice.label + ', ' + elapsedMinutes + ' of ' + sitState.duration + ' min';
     if (completed || elapsedMinutes > 0) logActivity('meditation', label);
     playBell();
     document.getElementById('dharma-breath-circle').classList.remove('running');
@@ -469,7 +468,7 @@
     var rounds = cache.activities.filter(function (a) { return a.category === 'mala-round'; }).length;
     document.getElementById('dharma-mala-stats').textContent = rounds
       ? (rounds + ' round' + (rounds === 1 ? '' : 's') + ' completed.')
-      : 'A round is 108 \u2014 tap along with a mantra, a breath, or just a beat.';
+      : 'A round is 108. Tap along with a mantra, a breath, or just a beat.';
   }
 
   function renderGatha() {
@@ -508,7 +507,7 @@
     renderDharmaEntries();
   }
 
-  // Wired once — the sit timer especially can't tolerate being
+  // Wired once, the sit timer especially can't tolerate being
   // re-attached on every render, or a tick would fire multiple times.
   function wireDharmaInteractions() {
     withConfirmation(document.getElementById('dharma-refuge-btn'), function () {
@@ -583,6 +582,73 @@
     });
   }
 
+  /* ---------------- MOVEMENT ---------------- */
+  // Unlike Sourdough/Tea's "tried once" tag, a routine is meant to
+  // be repeated, so completion here logs every time rather than
+  // gating after the first click. The tag still fills in once you've
+  // done it at least once, as a quiet visual note, but stays
+  // clickable. Removal works the same way as everywhere else
+  // (a MonkActivity row, keyed by title).
+
+  function renderMovement() {
+    var wrap = document.getElementById('movement-tags');
+    wrap.innerHTML = '';
+    var done = {}, removed = {};
+    cache.activities.forEach(function (a) {
+      if (a.category === 'movement') done[a.label] = true;
+      if (a.category === 'movement-removed') removed[a.label] = true;
+    });
+    var visible = MONK.movementRoutines.filter(function (r) { return !removed[r.title]; });
+    if (!visible.length) {
+      wrap.innerHTML = '<p class="monk-empty">Nothing left on this list. Everything here has been removed.</p>';
+      return;
+    }
+    visible.forEach(function (routine) {
+      var tag = document.createElement('button');
+      tag.className = 'monk-tag' + (done[routine.title] ? ' done' : '');
+      tag.textContent = routine.title;
+      tag.addEventListener('click', function () { openMovementModal(routine); });
+      wrap.appendChild(tag);
+    });
+  }
+
+  function openMovementModal(routine) {
+    var html =
+      '<h2></h2>' +
+      '<h3>What You\u2019ll Need</h3><ul></ul>' +
+      '<h3>The Routine</h3><ol></ol>' +
+      '<div class="monk-modal-actions">' +
+      '<button class="monk-btn primary" id="modal-movement-done-btn">Mark Today\u2019s Routine Complete</button>' +
+      '<button class="monk-quiet-link" id="modal-movement-remove-btn">Remove from list</button>' +
+      '</div>';
+    openModal(html);
+    modalBody.querySelector('h2').textContent = routine.title;
+    var ul = modalBody.querySelector('ul');
+    routine.ingredients.forEach(function (i) {
+      var li = document.createElement('li');
+      li.textContent = i;
+      ul.appendChild(li);
+    });
+    var ol = modalBody.querySelector('ol');
+    routine.steps.forEach(function (s) {
+      var li = document.createElement('li');
+      li.textContent = s;
+      ol.appendChild(li);
+    });
+
+    withConfirmation(modalBody.querySelector('#modal-movement-done-btn'), function () {
+      logActivity('movement', routine.title);
+      renderProgress();
+      renderMovement();
+    }, 'Logged for Today \u2713');
+
+    modalBody.querySelector('#modal-movement-remove-btn').addEventListener('click', function () {
+      logActivity('movement-removed', routine.title);
+      closeModal();
+      renderMovement();
+    });
+  }
+
   /* ---------------- PLACE ---------------- */
 
   var currentPlacePrompt = bags.place();
@@ -645,7 +711,7 @@
 
   /* ---------------- bell chime (sit timer + mala) ---------------- */
   // A soft, decaying tone built from a fundamental plus two quiet
-  // overtones — no audio file needed, and it only ever fires from a
+  // overtones, no audio file needed, and it only ever fires from a
   // real click, so autoplay restrictions are never a problem.
 
   var bellCtx = null;
@@ -770,7 +836,7 @@
     var wrap = document.getElementById('book-list');
     wrap.innerHTML = '';
     if (!cache.books.length) {
-      wrap.innerHTML = '<p class="monk-empty">Nothing on the shelf yet \u2014 add a book above.</p>';
+      wrap.innerHTML = '<p class="monk-empty">Nothing on the shelf yet. Add a book above.</p>';
       return;
     }
     cache.books.forEach(function (b) {
@@ -934,7 +1000,7 @@
     var wrap = document.getElementById('plant-list');
     wrap.innerHTML = '';
     if (!cache.plants.length) {
-      wrap.innerHTML = '<p class="monk-empty">Nothing planted yet — add one above.</p>';
+      wrap.innerHTML = '<p class="monk-empty">Nothing planted yet. Add one above.</p>';
       return;
     }
     cache.plants.forEach(function (p) {
@@ -1004,8 +1070,8 @@
 
   function renderSourdough() {
     renderSourdoughLog();
-    renderRecipeTagList('sourdough-discard-tags', MONK.sourdoughDiscardRecipes, 'sourdough-discard');
-    renderRecipeTagList('sourdough-recipe-tags', MONK.sourdoughRecipes, 'sourdough-recipe');
+    renderRecipeTagList('sourdough-discard-tags', MONK.sourdoughDiscardRecipes, 'sourdough-discard', renderSourdough);
+    renderRecipeTagList('sourdough-recipe-tags', MONK.sourdoughRecipes, 'sourdough-recipe', renderSourdough);
   }
 
   function renderSourdoughLog() {
@@ -1043,12 +1109,15 @@
       .catch(function (err) { console.warn('MonkSourdoughFeeding save failed:', err.message); });
   });
 
-  // Shared by both sourdough recipe lists: a row of tags. Clicking
-  // one opens the full recipe in a popup rather than marking it
-  // tried right away. "Tried" and "removed" are both tracked as
-  // MonkActivity rows (same mechanism as Craft), keyed by the
-  // recipe's title, so no new schema is needed for either.
-  function renderRecipeTagList(wrapId, recipes, category) {
+  // Shared by Sourdough's two recipe lists and Tea's blend list: a
+  // row of tags. Clicking one opens the full recipe in a popup
+  // rather than marking it tried right away. "Tried" and "removed"
+  // are both tracked as MonkActivity rows (same mechanism as Craft),
+  // keyed by the recipe's title, so no new schema is needed for
+  // either. `onChange` re-renders whichever list called this, and
+  // the label args let the modal say "Blend"/"Steeping" for Tea
+  // instead of "Ingredients"/"Method".
+  function renderRecipeTagList(wrapId, recipes, category, onChange, ingredientsLabel, stepsLabel) {
     var wrap = document.getElementById(wrapId);
     wrap.innerHTML = '';
     var tried = {}, removed = {};
@@ -1058,7 +1127,7 @@
     });
     var visible = recipes.filter(function (r) { return !removed[r.title]; });
     if (!visible.length) {
-      wrap.innerHTML = '<p class="monk-empty">Nothing left on this list \u2014 every recipe here has been removed.</p>';
+      wrap.innerHTML = '<p class="monk-empty">Nothing left on this list. Everything here has been removed.</p>';
       return;
     }
     visible.forEach(function (recipe) {
@@ -1066,17 +1135,17 @@
       tag.className = 'monk-tag' + (tried[recipe.title] ? ' done' : '');
       tag.textContent = recipe.title;
       tag.addEventListener('click', function () {
-        openRecipeModal(recipe, category, !!tried[recipe.title]);
+        openRecipeModal(recipe, category, !!tried[recipe.title], onChange, ingredientsLabel, stepsLabel);
       });
       wrap.appendChild(tag);
     });
   }
 
-  function openRecipeModal(recipe, category, alreadyTried) {
+  function openRecipeModal(recipe, category, alreadyTried, onChange, ingredientsLabel, stepsLabel) {
     var html =
       '<h2></h2>' +
-      '<h3>Ingredients</h3><ul></ul>' +
-      '<h3>Method</h3><ol></ol>' +
+      '<h3>' + (ingredientsLabel || 'Ingredients') + '</h3><ul></ul>' +
+      '<h3>' + (stepsLabel || 'Method') + '</h3><ol></ol>' +
       '<div class="monk-modal-actions">' +
       '<button class="monk-btn primary" id="modal-tried-btn"></button>' +
       '<button class="monk-quiet-link" id="modal-remove-btn">Remove from list</button>' +
@@ -1106,14 +1175,21 @@
       logActivity(category, recipe.title);
       triedBtn.textContent = 'Tried \u2713';
       triedBtn.disabled = true;
-      renderSourdough();
+      renderProgress();
+      if (onChange) onChange();
     });
 
     modalBody.querySelector('#modal-remove-btn').addEventListener('click', function () {
       logActivity(category + '-removed', recipe.title);
       closeModal();
-      renderSourdough();
+      if (onChange) onChange();
     });
+  }
+
+  /* ---------------- TEA ---------------- */
+
+  function renderTea() {
+    renderRecipeTagList('tea-tags', MONK.teaBlends, 'tea-blend', renderTea, 'Blend', 'Steeping');
   }
 
   /* ---------------- WATCHLIST ---------------- */
@@ -1131,7 +1207,7 @@
       li.innerHTML =
         '<label><input type="checkbox"' + (w.watched ? ' checked' : '') + '><span></span></label>' +
         '<button class="monk-quiet-link">Remove</button>';
-      li.querySelector('span').textContent = w.title + (w.note ? ' \u2014 ' + w.note : '');
+      li.querySelector('span').textContent = w.title + (w.note ? ': ' + w.note : '');
 
       li.querySelector('input').addEventListener('change', function (e) {
         w.watched = e.target.checked;
@@ -1154,7 +1230,7 @@
   }
 
   // Starter suggestions live only in memory until you actually touch
-  // one — then it's saved for real, same as anything you add yourself.
+  // one, then it's saved for real, same as anything you add yourself.
   function ensureWatchlistPersisted(w, afterSaved) {
     if (w.objectId) { afterSaved(); return; }
     createInClass('MonkWatchlistItem', { title: w.title, note: w.note, watched: w.watched }).then(function (res) {
@@ -1181,10 +1257,10 @@
     var el = document.getElementById('watch-suggestion');
     var unwatched = cache.watchlist.filter(function (w) { return !w.watched; });
     if (!unwatched.length) {
-      el.textContent = 'Nothing waiting \u2014 add something above.';
+      el.textContent = 'Nothing waiting, add something above.';
     } else {
       var pick = unwatched[Math.floor(Math.random() * unwatched.length)];
-      el.textContent = '"' + pick.title + '"' + (pick.note ? ' \u2014 ' + pick.note : '');
+      el.textContent = '"' + pick.title + '"' + (pick.note ? ': ' + pick.note : '');
     }
     el.style.display = 'block';
   });
@@ -1224,7 +1300,7 @@
     var wrap = document.getElementById('wishlist-list');
     wrap.innerHTML = '';
     if (!cache.wishlist.length) {
-      wrap.innerHTML = '<p class="monk-empty">Nothing waiting on this list \u2014 add something above and give it a few days.</p>';
+      wrap.innerHTML = '<p class="monk-empty">Nothing waiting on this list. Add something above and give it a few days.</p>';
       return;
     }
     var rate = getWishlistRate();
@@ -1271,9 +1347,9 @@
       if (needed <= 0) {
         waitEl.textContent = 'Added ' + waited + ' day' + (waited === 1 ? '' : 's') + ' ago.';
       } else if (ready) {
-        waitEl.textContent = 'Waiting period met \u2014 ' + waited + ' of ' + needed + ' days, at $' + rate + '/day.';
+        waitEl.textContent = 'Waiting period met. ' + waited + ' of ' + needed + ' days at $' + rate + ' a day.';
       } else {
-        waitEl.textContent = (needed - waited) + ' day' + (needed - waited === 1 ? '' : 's') + ' to go \u2014 ' + waited + ' of ' + needed + ' days, at $' + rate + '/day.';
+        waitEl.textContent = (needed - waited) + ' day' + (needed - waited === 1 ? '' : 's') + ' to go. ' + waited + ' of ' + needed + ' days at $' + rate + ' a day.';
       }
       card.querySelector('.monk-wish-fill').style.width = pct + '%';
 
@@ -1426,6 +1502,8 @@
       .reduce(function (sum, a) { return sum + sitMinutesFromLabel(a.label); }, 0);
     var malaRounds = cache.activities.filter(function (a) { return a.category === 'mala-round'; }).length;
     var contemplationsWritten = cache.dharmaEntries.length;
+    var movementCompletions = cache.activities.filter(function (a) { return a.category === 'movement'; }).length;
+    var teaBlendsTried = cache.activities.filter(function (a) { return a.category === 'tea-blend'; }).length;
 
     var rows = [
       ['Checklist items completed', checklistCompleted],
@@ -1442,7 +1520,9 @@
       ['Sits completed', sitsCompleted],
       ['Minutes meditated', minutesMeditated],
       ['Mala rounds completed', malaRounds],
-      ['Contemplations written', contemplationsWritten]
+      ['Contemplations written', contemplationsWritten],
+      ['Movement routines completed', movementCompletions],
+      ['Tea blends tried', teaBlendsTried]
     ];
     var max = Math.max.apply(null, rows.map(function (r) { return r[1]; }).concat([1]));
 
@@ -1521,6 +1601,7 @@
     renderHome();
     wireHomeInteractions();
     renderRhythm();
+    renderMovement();
     renderDharma();
     wireDharmaInteractions();
     renderPlacePrompt();
@@ -1536,6 +1617,7 @@
     pickCraft();
     renderPlants();
     renderSourdough();
+    renderTea();
     renderWatchlist();
     renderWishlist();
     renderAttention();
