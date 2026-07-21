@@ -43,6 +43,19 @@
 
   var todayStr = dateStr(new Date());
 
+  // Set once login/signup succeeds, in the auth bootstrap code at
+  // the bottom of this file. Every piece of data this app reads or
+  // writes is scoped to this user, so two people using the same
+  // deployed site never see each other's rows.
+  var currentUser = null;
+
+  function userFetchClass(className, order) {
+    return fetchClass(className, order, { owner: currentUser.username });
+  }
+  function userCreateInClass(className, fields) {
+    return createInClass(className, Object.assign({ owner: currentUser.username }, fields));
+  }
+
   var cache = {
     days: {},          // date -> {objectId, date, morningItems, eveningItems}
     placeNotes: [],
@@ -54,7 +67,8 @@
     books: [],
     bookNotes: [],
     wishlist: [],
-    dharmaEntries: []
+    dharmaEntries: [],
+    learningNodes: []
   };
 
   /* ---------------- date helpers ---------------- */
@@ -132,8 +146,27 @@
   var navList = document.getElementById('monk-nav-list');
   var mobileNav = document.getElementById('monk-mobile-nav');
 
+  // Purely a visual grouping for the sidebar, this doesn't change
+  // routing or section order, just clusters related chapters under
+  // a small label so the nav reads as a few short lists instead of
+  // one long one.
+  var navGroups = {
+    'sec-home': 'Daily',
+    'sec-place': 'Awareness',
+    'sec-learning': 'Growing',
+    'sec-watchlist': 'Living',
+    'sec-journal': 'Record'
+  };
+
   sections.forEach(function (sec, i) {
     var title = sec.getAttribute('data-title');
+
+    if (navGroups[sec.id]) {
+      var groupLi = document.createElement('li');
+      groupLi.className = 'monk-nav-group-label';
+      groupLi.textContent = navGroups[sec.id];
+      navList.appendChild(groupLi);
+    }
 
     var li = document.createElement('li');
     var btn = document.createElement('button');
@@ -184,7 +217,7 @@
     var entry = { date: todayStr, category: category, label: label || '' };
     cache.activities.push(entry);
     renderProgress();
-    createInClass('MonkActivity', entry).then(function (res) {
+    userCreateInClass('MonkActivity', entry).then(function (res) {
       entry.objectId = res.objectId;
     }).catch(function (err) { console.warn('MonkActivity save failed:', err.message); });
   }
@@ -200,7 +233,7 @@
     } else {
       var payload = { date: todayStr, morningItems: [], eveningItems: [], preceptItems: [] };
       payload[field] = items;
-      createInClass('MonkDay', payload).then(function (res) {
+      userCreateInClass('MonkDay', payload).then(function (res) {
         cache.days[todayStr] = Object.assign({ objectId: res.objectId }, payload);
       }).catch(function (err) { console.warn('MonkDay create failed:', err.message); });
     }
@@ -319,7 +352,7 @@
       renderJournalEntries();
       renderHome();
       renderProgress();
-      createInClass('MonkJournalEntry', entry).catch(function (err) { console.warn('MonkJournalEntry save failed:', err.message); });
+      userCreateInClass('MonkJournalEntry', entry).catch(function (err) { console.warn('MonkJournalEntry save failed:', err.message); });
     }, 'Saved \u2713');
   }
 
@@ -578,7 +611,7 @@
       renderDharmaEntries();
       renderHome();
       renderProgress();
-      createInClass('MonkDharmaEntry', entry).catch(function (err) { console.warn('MonkDharmaEntry save failed:', err.message); });
+      userCreateInClass('MonkDharmaEntry', entry).catch(function (err) { console.warn('MonkDharmaEntry save failed:', err.message); });
     });
   }
 
@@ -683,7 +716,7 @@
     renderPlaceEntries();
     renderHome();
     renderProgress();
-    createInClass('MonkPlaceNote', entry).catch(function (err) { console.warn('MonkPlaceNote save failed:', err.message); });
+    userCreateInClass('MonkPlaceNote', entry).catch(function (err) { console.warn('MonkPlaceNote save failed:', err.message); });
   });
 
   /* ---------------- confirmation helper ---------------- */
@@ -787,12 +820,14 @@
 
   function renderLearning() {
     var select = document.getElementById('learning-category');
-    Object.keys(MONK.learning).forEach(function (cat) {
-      var opt = document.createElement('option');
-      opt.value = cat;
-      opt.textContent = cat;
-      select.appendChild(opt);
-    });
+    if (!select.options.length) {
+      Object.keys(MONK.learning).forEach(function (cat) {
+        var opt = document.createElement('option');
+        opt.value = cat;
+        opt.textContent = cat;
+        select.appendChild(opt);
+      });
+    }
     var currentTopic = learningBag(select.value)();
     var topicEl = document.getElementById('learning-topic');
     topicEl.textContent = currentTopic;
@@ -806,6 +841,385 @@
     withConfirmation(document.getElementById('learning-done'), function () {
       logActivity('learning', select.value + ': ' + currentTopic);
     });
+
+    renderKB();
+    wireKBInteractions();
+  }
+
+  /* ---- notebook: nested folders, sticky notes, photos, sketches ---- */
+  // One class, MonkLearningNode, covers folders and every content
+  // type. A folder is just a node with type 'folder' that other
+  // nodes point at via parentId. Root-level items use parentId ''.
+
+  var kbCurrentFolderId = '';
+
+  function kbChildrenOf(parentId) {
+    return cache.learningNodes.filter(function (n) { return (n.parentId || '') === parentId; });
+  }
+
+  function kbNodeById(id) {
+    return cache.learningNodes.filter(function (n) { return n.objectId === id; })[0];
+  }
+
+  function kbPathTo(id) {
+    var path = [];
+    var node = kbNodeById(id);
+    while (node) {
+      path.unshift(node);
+      node = kbNodeById(node.parentId);
+    }
+    return path;
+  }
+
+  function kbCollectDescendants(id) {
+    var out = [];
+    kbChildrenOf(id).forEach(function (child) {
+      out.push(child);
+      if (child.type === 'folder') out = out.concat(kbCollectDescendants(child.objectId));
+    });
+    return out;
+  }
+
+  function kbDeleteNode(node) {
+    var toRemove = [node].concat(node.type === 'folder' ? kbCollectDescendants(node.objectId) : []);
+    var removeIds = toRemove.map(function (n) { return n.objectId; });
+    cache.learningNodes = cache.learningNodes.filter(function (n) { return removeIds.indexOf(n.objectId) === -1; });
+    if (removeIds.indexOf(kbCurrentFolderId) !== -1) kbCurrentFolderId = node.parentId || '';
+    renderKB();
+    toRemove.forEach(function (n) {
+      if (n.objectId) deleteInClass('MonkLearningNode', n.objectId).catch(function (err) { console.warn('MonkLearningNode delete failed:', err.message); });
+    });
+  }
+
+  function renderKB() {
+    // breadcrumb
+    var crumbWrap = document.getElementById('kb-breadcrumb');
+    crumbWrap.innerHTML = '';
+    var rootBtn = document.createElement('button');
+    rootBtn.textContent = 'All';
+    rootBtn.addEventListener('click', function () { kbCurrentFolderId = ''; renderKB(); });
+    crumbWrap.appendChild(rootBtn);
+    kbPathTo(kbCurrentFolderId).forEach(function (n) {
+      var sep = document.createElement('span');
+      sep.className = 'sep';
+      sep.textContent = '/';
+      crumbWrap.appendChild(sep);
+      var btn = document.createElement('button');
+      btn.textContent = n.title;
+      btn.addEventListener('click', function () { kbCurrentFolderId = n.objectId; renderKB(); });
+      crumbWrap.appendChild(btn);
+    });
+
+    var children = kbChildrenOf(kbCurrentFolderId);
+    var folders = children.filter(function (n) { return n.type === 'folder'; });
+    var content = children.filter(function (n) { return n.type !== 'folder'; });
+    var ordered = folders.concat(content);
+
+    // a small web view of this level: the current folder in the
+    // center, its direct children spread out below it. Sized to
+    // the number of children instead of always stretching across a
+    // fixed width, so two nodes sit close together instead of
+    // looking like scattered dots.
+    var webWrap = document.getElementById('kb-web');
+    if (!ordered.length) {
+      webWrap.innerHTML = '<p class="monk-empty" style="border:none">Nothing here yet. Add a folder or some content below.</p>';
+    } else {
+      var spacing = 130;
+      var h = 150;
+      var w = Math.max(220, (ordered.length - 1) * spacing + 180);
+      var cx = w / 2, cy = 28;
+      var childY = h - 40;
+      var startX = ordered.length === 1 ? cx : (w - (ordered.length - 1) * spacing) / 2;
+      var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">';
+      ordered.forEach(function (n, i) {
+        var nx = ordered.length === 1 ? cx : startX + i * spacing;
+        svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + nx + '" y2="' + childY + '"></line>';
+      });
+      svg += '<g><circle class="current" cx="' + cx + '" cy="' + cy + '" r="7"></circle></g>';
+      ordered.forEach(function (n, i) {
+        var nx = ordered.length === 1 ? cx : startX + i * spacing;
+        var label = n.title.length > 14 ? n.title.slice(0, 13) + '\u2026' : n.title;
+        svg += '<g data-kb-node="' + n.objectId + '"><circle cx="' + nx + '" cy="' + childY + '" r="6"></circle>' +
+          '<text x="' + nx + '" y="' + (childY + 20) + '" text-anchor="middle">' + label + '</text></g>';
+      });
+      svg += '</svg>';
+      webWrap.innerHTML = svg;
+      Array.prototype.forEach.call(webWrap.querySelectorAll('[data-kb-node]'), function (g) {
+        var id = g.getAttribute('data-kb-node');
+        g.addEventListener('click', function () { kbOpenNode(kbNodeById(id)); });
+      });
+    }
+
+    // card grid
+    var grid = document.getElementById('kb-grid');
+    grid.innerHTML = '';
+    ordered.forEach(function (n) {
+      var card = document.createElement('div');
+      card.className = 'monk-kb-card';
+      var typeLabel = n.type === 'folder' ? 'Folder' : n.type === 'note' ? 'Sticky Note' : n.type === 'photo' ? 'Photo' : 'Sketch';
+      var inner = '<button class="monk-kb-card-remove" type="button" title="Remove">\u00d7</button>';
+      inner += '<p class="monk-kb-card-type">' + typeLabel + '</p>';
+      if (n.type === 'photo' && n.photoUrl) {
+        inner += '<img class="monk-kb-card-photo" src="' + n.photoUrl + '" alt="">';
+      }
+      inner += '<p class="monk-kb-card-title"></p>';
+      if (n.type === 'note' && n.body) inner += '<p class="monk-kb-card-preview"></p>';
+      card.innerHTML = inner;
+      card.querySelector('.monk-kb-card-title').textContent = n.title;
+      if (n.type === 'note' && n.body) card.querySelector('.monk-kb-card-preview').textContent = n.body;
+      card.querySelector('.monk-kb-card-remove').addEventListener('click', function (e) {
+        e.stopPropagation();
+        kbDeleteNode(n);
+      });
+      card.addEventListener('click', function () { kbOpenNode(n); });
+      grid.appendChild(card);
+    });
+  }
+
+  function kbOpenNode(n) {
+    if (n.type === 'folder') { kbCurrentFolderId = n.objectId; renderKB(); return; }
+    if (n.type === 'note') { kbOpenNoteEditor(n); return; }
+    if (n.type === 'photo') { kbOpenPhotoViewer(n); return; }
+    if (n.type === 'sketch') { kbOpenSketch(n); return; }
+  }
+
+  function kbOpenNoteEditor(existing) {
+    var html =
+      '<h2></h2>' +
+      '<input class="monk-input monk-kb-note-title" placeholder="Title">' +
+      '<textarea class="monk-textarea monk-kb-note-body" placeholder="Notes, bullet points, whatever you want. Start a line with - for a bullet." style="min-height:160px"></textarea>' +
+      '<div class="monk-modal-actions"><button class="monk-btn primary" id="kb-note-save">Save</button></div>';
+    openModal(html);
+    modalBody.querySelector('h2').textContent = existing ? 'Edit Note' : 'New Sticky Note';
+    var titleInput = modalBody.querySelector('.monk-kb-note-title');
+    var bodyInput = modalBody.querySelector('.monk-kb-note-body');
+    titleInput.value = existing ? existing.title : '';
+    bodyInput.value = existing ? existing.body : '';
+    modalBody.querySelector('#kb-note-save').addEventListener('click', function () {
+      var title = titleInput.value.trim() || 'Untitled Note';
+      var body = bodyInput.value;
+      if (existing) {
+        existing.title = title;
+        existing.body = body;
+        renderKB();
+        closeModal();
+        updateInClass('MonkLearningNode', existing.objectId, { title: title, body: body }).catch(function (err) { console.warn('MonkLearningNode update failed:', err.message); });
+      } else {
+        var entry = { type: 'note', parentId: kbCurrentFolderId, title: title, body: body };
+        cache.learningNodes.push(entry);
+        renderKB();
+        closeModal();
+        userCreateInClass('MonkLearningNode', entry).then(function (res) { entry.objectId = res.objectId; })
+          .catch(function (err) { console.warn('MonkLearningNode create failed:', err.message); });
+      }
+    });
+  }
+
+  function kbOpenPhotoViewer(n) {
+    var html =
+      '<h2></h2>' +
+      '<img class="monk-kb-photo-full" src="' + n.photoUrl + '" alt="">' +
+      '<label class="monk-kb-color-toggle"><input type="checkbox" id="kb-color-toggle"><span>Show in color</span></label>' +
+      '<div class="monk-modal-actions"><button class="monk-quiet-link" id="kb-photo-remove">Remove Photo</button></div>';
+    openModal(html);
+    modalBody.querySelector('h2').textContent = n.title;
+    var img = modalBody.querySelector('.monk-kb-photo-full');
+    var toggle = modalBody.querySelector('#kb-color-toggle');
+    toggle.checked = n.colorMode === 'color';
+    img.style.filter = toggle.checked ? 'none' : 'grayscale(100%)';
+    toggle.addEventListener('change', function () {
+      n.colorMode = toggle.checked ? 'color' : 'bw';
+      img.style.filter = toggle.checked ? 'none' : 'grayscale(100%)';
+      if (n.objectId) updateInClass('MonkLearningNode', n.objectId, { colorMode: n.colorMode }).catch(function (err) { console.warn('MonkLearningNode update failed:', err.message); });
+    });
+    modalBody.querySelector('#kb-photo-remove').addEventListener('click', function () {
+      closeModal();
+      kbDeleteNode(n);
+    });
+  }
+
+  /* ---- sketches: pen + eraser + thickness + undo, on a canvas ---- */
+
+  var kbCanvas = document.getElementById('kb-canvas');
+  var kbCtx = kbCanvas.getContext('2d');
+  var kbSketchOverlay = document.getElementById('kb-sketch-overlay');
+  var kbStrokes = [];
+  var kbCurrentStroke = null;
+  var kbDrawing = false;
+  var kbTool = 'pen';
+  var kbThickness = 3;
+  var kbActiveSketchNode = null;
+
+  function kbRedraw() {
+    if (!kbCtx) return;
+    kbCtx.clearRect(0, 0, kbCanvas.width, kbCanvas.height);
+    kbCtx.fillStyle = '#ffffff';
+    kbCtx.fillRect(0, 0, kbCanvas.width, kbCanvas.height);
+    kbStrokes.forEach(function (stroke) {
+      if (stroke.points.length < 2) return;
+      kbCtx.beginPath();
+      kbCtx.moveTo(stroke.points[0].x, stroke.points[0].y);
+      for (var i = 1; i < stroke.points.length; i++) kbCtx.lineTo(stroke.points[i].x, stroke.points[i].y);
+      kbCtx.lineCap = 'round';
+      kbCtx.lineJoin = 'round';
+      kbCtx.lineWidth = stroke.thickness;
+      kbCtx.globalCompositeOperation = stroke.erase ? 'destination-out' : 'source-over';
+      kbCtx.strokeStyle = '#000000';
+      kbCtx.stroke();
+    });
+    kbCtx.globalCompositeOperation = 'source-over';
+  }
+
+  function kbCanvasPoint(e) {
+    var rect = kbCanvas.getBoundingClientRect();
+    var scaleX = kbCanvas.width / rect.width;
+    var scaleY = kbCanvas.height / rect.height;
+    return { x: (e.clientX - rect.left) * scaleX, y: (e.clientY - rect.top) * scaleY };
+  }
+
+  var kbSketchTitleInput = document.getElementById('kb-sketch-title');
+
+  function kbSaveSketch() {
+    if (!kbActiveSketchNode) return;
+    var title = kbSketchTitleInput.value.trim() || 'Untitled Sketch';
+    kbActiveSketchNode.title = title;
+    var data = JSON.stringify(kbStrokes);
+    kbActiveSketchNode.sketchStrokes = data;
+    if (kbActiveSketchNode.objectId) {
+      updateInClass('MonkLearningNode', kbActiveSketchNode.objectId, { title: title, sketchStrokes: data }).catch(function (err) { console.warn('MonkLearningNode update failed:', err.message); });
+    } else {
+      userCreateInClass('MonkLearningNode', kbActiveSketchNode).then(function (res) { kbActiveSketchNode.objectId = res.objectId; })
+        .catch(function (err) { console.warn('MonkLearningNode create failed:', err.message); });
+    }
+  }
+
+  function kbOpenSketch(existing) {
+    if (existing) {
+      kbActiveSketchNode = existing;
+      kbStrokes = existing.sketchStrokes ? JSON.parse(existing.sketchStrokes) : [];
+    } else {
+      kbActiveSketchNode = { type: 'sketch', parentId: kbCurrentFolderId, title: 'Untitled Sketch', sketchStrokes: '[]' };
+      cache.learningNodes.push(kbActiveSketchNode);
+      kbStrokes = [];
+    }
+    kbSketchTitleInput.value = kbActiveSketchNode.title;
+    kbRedraw();
+    kbSketchOverlay.style.display = 'flex';
+  }
+
+  function kbCloseSketch() {
+    kbSketchOverlay.style.display = 'none';
+    renderKB();
+    kbActiveSketchNode = null;
+  }
+
+  function kbUndo() {
+    kbStrokes.pop();
+    kbRedraw();
+    kbSaveSketch();
+  }
+
+  function wireKBInteractions() {
+    kbSketchTitleInput.addEventListener('blur', kbSaveSketch);
+    kbSketchTitleInput.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') { e.preventDefault(); kbSaveSketch(); kbSketchTitleInput.blur(); }
+    });
+
+    document.getElementById('kb-new-folder').addEventListener('click', function () {
+      var html =
+        '<h2>New Folder</h2>' +
+        '<input class="monk-input" id="kb-folder-title" placeholder="Folder name">' +
+        '<div class="monk-modal-actions"><button class="monk-btn primary" id="kb-folder-create">Create Folder</button></div>';
+      openModal(html);
+      modalBody.querySelector('#kb-folder-create').addEventListener('click', function () {
+        var title = modalBody.querySelector('#kb-folder-title').value.trim();
+        if (!title) return;
+        var entry = { type: 'folder', parentId: kbCurrentFolderId, title: title };
+        cache.learningNodes.push(entry);
+        closeModal();
+        renderKB();
+        userCreateInClass('MonkLearningNode', entry).then(function (res) { entry.objectId = res.objectId; })
+          .catch(function (err) { console.warn('MonkLearningNode create failed:', err.message); });
+      });
+    });
+
+    document.getElementById('kb-new-content').addEventListener('click', function () {
+      var html =
+        '<h2>Add Content</h2>' +
+        '<div class="monk-modal-actions">' +
+        '<button class="monk-btn primary" id="kb-add-note">Sticky Note</button>' +
+        '<button class="monk-btn primary" id="kb-add-photo">Photo</button>' +
+        '<button class="monk-btn primary" id="kb-add-sketch">Sketch</button>' +
+        '</div>';
+      openModal(html);
+      modalBody.querySelector('#kb-add-note').addEventListener('click', function () { closeModal(); kbOpenNoteEditor(null); });
+      modalBody.querySelector('#kb-add-photo').addEventListener('click', function () { closeModal(); document.getElementById('kb-photo-input').click(); });
+      modalBody.querySelector('#kb-add-sketch').addEventListener('click', function () { closeModal(); kbOpenSketch(null); });
+    });
+
+    document.getElementById('kb-photo-input').addEventListener('change', function (e) {
+      var file = e.target.files[0];
+      e.target.value = '';
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function () {
+        var dataUrl = reader.result;
+        var entry = { type: 'photo', parentId: kbCurrentFolderId, title: file.name.replace(/\.[a-zA-Z0-9]+$/, '') || 'Photo', photoUrl: '', photoName: file.name, colorMode: 'bw' };
+        cache.learningNodes.push(entry);
+        renderKB();
+        b4aUploadFile(Date.now() + '_' + file.name, dataUrl).then(function (res) {
+          entry.photoUrl = res.url;
+          renderKB();
+          return userCreateInClass('MonkLearningNode', entry);
+        }).then(function (res) {
+          if (res) entry.objectId = res.objectId;
+        }).catch(function (err) { console.warn('Photo upload failed:', err.message); });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    // sketch toolbar
+    var penBtn = document.getElementById('kb-tool-pen');
+    var eraserBtn = document.getElementById('kb-tool-eraser');
+    function setTool(tool) {
+      kbTool = tool;
+      penBtn.classList.toggle('active', tool === 'pen');
+      eraserBtn.classList.toggle('active', tool === 'eraser');
+      kbCanvas.classList.toggle('tool-pen', tool === 'pen');
+      kbCanvas.classList.toggle('tool-eraser', tool === 'eraser');
+    }
+    penBtn.addEventListener('click', function () { setTool('pen'); });
+    eraserBtn.addEventListener('click', function () { setTool('eraser'); });
+    document.getElementById('kb-thickness').addEventListener('input', function (e) { kbThickness = parseInt(e.target.value, 10); });
+    document.getElementById('kb-undo').addEventListener('click', kbUndo);
+    document.getElementById('kb-sketch-done').addEventListener('click', function () { kbSaveSketch(); kbCloseSketch(); });
+
+    document.addEventListener('keydown', function (e) {
+      if (kbSketchOverlay.style.display === 'none') return;
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); kbUndo(); }
+    });
+
+    kbCanvas.addEventListener('pointerdown', function (e) {
+      kbDrawing = true;
+      kbCurrentStroke = { points: [kbCanvasPoint(e)], thickness: kbThickness, erase: kbTool === 'eraser' };
+      kbStrokes.push(kbCurrentStroke);
+      if (kbCanvas.setPointerCapture) {
+        try { kbCanvas.setPointerCapture(e.pointerId); } catch (err) { /* not critical */ }
+      }
+    });
+    kbCanvas.addEventListener('pointermove', function (e) {
+      if (!kbDrawing || !kbCurrentStroke) return;
+      kbCurrentStroke.points.push(kbCanvasPoint(e));
+      kbRedraw();
+    });
+    function endStroke() {
+      if (!kbDrawing) return;
+      kbDrawing = false;
+      kbCurrentStroke = null;
+      kbSaveSketch();
+    }
+    kbCanvas.addEventListener('pointerup', endStroke);
+    kbCanvas.addEventListener('pointerleave', endStroke);
   }
 
   /* ---------------- READING ---------------- */
@@ -818,7 +1232,7 @@
 
   function ensureBookPersisted(b, afterSaved) {
     if (b.objectId) { afterSaved(); return; }
-    createInClass('MonkBook', { title: b.title, author: b.author, status: b.status }).then(function (res) {
+    userCreateInClass('MonkBook', { title: b.title, author: b.author, status: b.status }).then(function (res) {
       b.objectId = res.objectId;
       afterSaved();
     }).catch(function (err) { console.warn('MonkBook create failed:', err.message); afterSaved(); });
@@ -918,7 +1332,7 @@
         logActivity('reading', b.title);
         renderReading();
         ensureBookPersisted(b, function () {
-          createInClass('MonkBookNote', { bookId: b.objectId, quote: entry.quote, page: entry.page, note: entry.note, date: entry.date })
+          userCreateInClass('MonkBookNote', { bookId: b.objectId, quote: entry.quote, page: entry.page, note: entry.note, date: entry.date })
             .then(function (res) { entry.objectId = res.objectId; })
             .catch(function (err) { console.warn('MonkBookNote save failed:', err.message); });
         });
@@ -1062,7 +1476,7 @@
     nameInput.value = '';
     speciesInput.value = '';
     renderPlants();
-    createInClass('MonkPlant', entry).then(function (res) { entry.objectId = res.objectId; })
+    userCreateInClass('MonkPlant', entry).then(function (res) { entry.objectId = res.objectId; })
       .catch(function (err) { console.warn('MonkPlant create failed:', err.message); });
   });
 
@@ -1105,7 +1519,7 @@
     noteInput.value = '';
     renderSourdoughLog();
     logActivity('sourdough-feed', entry.note);
-    createInClass('MonkSourdoughFeeding', entry).then(function (res) { entry.objectId = res.objectId; })
+    userCreateInClass('MonkSourdoughFeeding', entry).then(function (res) { entry.objectId = res.objectId; })
       .catch(function (err) { console.warn('MonkSourdoughFeeding save failed:', err.message); });
   });
 
@@ -1233,7 +1647,7 @@
   // one, then it's saved for real, same as anything you add yourself.
   function ensureWatchlistPersisted(w, afterSaved) {
     if (w.objectId) { afterSaved(); return; }
-    createInClass('MonkWatchlistItem', { title: w.title, note: w.note, watched: w.watched }).then(function (res) {
+    userCreateInClass('MonkWatchlistItem', { title: w.title, note: w.note, watched: w.watched }).then(function (res) {
       w.objectId = res.objectId;
       afterSaved();
     }).catch(function (err) { console.warn('MonkWatchlistItem create failed:', err.message); });
@@ -1249,7 +1663,7 @@
     titleInput.value = '';
     noteInput.value = '';
     renderWatchlist();
-    createInClass('MonkWatchlistItem', entry).then(function (res) { entry.objectId = res.objectId; })
+    userCreateInClass('MonkWatchlistItem', entry).then(function (res) { entry.objectId = res.objectId; })
       .catch(function (err) { console.warn('MonkWatchlistItem save failed:', err.message); });
   });
 
@@ -1288,7 +1702,7 @@
 
   function ensureWishlistPersisted(w, afterSaved) {
     if (w.objectId) { afterSaved(); return; }
-    createInClass('MonkWishlistItem', {
+    userCreateInClass('MonkWishlistItem', {
       name: w.name, price: w.price, note: w.note, dateAdded: w.dateAdded, checks: w.checks
     }).then(function (res) { w.objectId = res.objectId; afterSaved(); })
       .catch(function (err) { console.warn('MonkWishlistItem create failed:', err.message); afterSaved(); });
@@ -1438,7 +1852,7 @@
     renderJournalEntries();
     renderHome();
     renderProgress();
-    createInClass('MonkJournalEntry', entry).catch(function (err) { console.warn('MonkJournalEntry save failed:', err.message); });
+    userCreateInClass('MonkJournalEntry', entry).catch(function (err) { console.warn('MonkJournalEntry save failed:', err.message); });
   });
 
   /* ---------------- RANDOM PRACTICE ---------------- */
@@ -1540,22 +1954,23 @@
 
   function init() {
     Promise.all([
-      fetchClass('MonkDay').catch(function () { return []; }),
-      fetchClass('MonkPlaceNote', 'date').catch(function () { return []; }),
-      fetchClass('MonkJournalEntry', 'date').catch(function () { return []; }),
-      fetchClass('MonkActivity', 'date').catch(function () { return []; }),
-      fetchClass('MonkPlant').catch(function () { return []; }),
-      fetchClass('MonkSourdoughFeeding', 'date').catch(function () { return []; }),
-      fetchClass('MonkWatchlistItem').catch(function () { return []; }),
-      fetchClass('MonkBook').catch(function () { return []; }),
-      fetchClass('MonkBookNote', 'date').catch(function () { return []; }),
-      fetchClass('MonkWishlistItem').catch(function () { return []; }),
-      fetchClass('MonkDharmaEntry', 'date').catch(function () { return []; })
+      userFetchClass('MonkDay').catch(function () { return []; }),
+      userFetchClass('MonkPlaceNote', 'date').catch(function () { return []; }),
+      userFetchClass('MonkJournalEntry', 'date').catch(function () { return []; }),
+      userFetchClass('MonkActivity', 'date').catch(function () { return []; }),
+      userFetchClass('MonkPlant').catch(function () { return []; }),
+      userFetchClass('MonkSourdoughFeeding', 'date').catch(function () { return []; }),
+      userFetchClass('MonkWatchlistItem').catch(function () { return []; }),
+      userFetchClass('MonkBook').catch(function () { return []; }),
+      userFetchClass('MonkBookNote', 'date').catch(function () { return []; }),
+      userFetchClass('MonkWishlistItem').catch(function () { return []; }),
+      userFetchClass('MonkDharmaEntry', 'date').catch(function () { return []; }),
+      userFetchClass('MonkLearningNode').catch(function () { return []; })
     ]).then(function (results) {
       var days = results[0], placeNotes = results[1], journalEntries = results[2], activities = results[3];
       var plants = results[4], sourdoughLog = results[5], watchlist = results[6];
       var books = results[7], bookNotes = results[8], wishlistItems = results[9];
-      var dharmaEntries = results[10];
+      var dharmaEntries = results[10], learningNodes = results[11];
       days.forEach(function (row) {
         cache.days[row.date] = {
           objectId: row.objectId,
@@ -1587,6 +2002,19 @@
         return { objectId: r.objectId, name: r.name, price: r.price || '', note: r.note || '', dateAdded: r.dateAdded || todayStr, checks: checks };
       });
       cache.dharmaEntries = dharmaEntries.map(function (r) { return { objectId: r.objectId, date: r.date, prompt: r.prompt, note: r.note }; });
+      cache.learningNodes = learningNodes.map(function (r) {
+        return {
+          objectId: r.objectId,
+          type: r.type,
+          parentId: r.parentId || '',
+          title: r.title || '',
+          body: r.body || '',
+          photoUrl: r.photoUrl || '',
+          photoName: r.photoName || '',
+          colorMode: r.colorMode || 'bw',
+          sketchStrokes: r.sketchStrokes || '[]'
+        };
+      });
     }).catch(function (err) {
       // Only catches problems loading/parsing the fetched data above.
       // renderAll() itself is called exactly once below regardless of
@@ -1626,5 +2054,97 @@
     showSection('sec-home');
   }
 
-  init();
+  /* ---------------- auth ---------------- */
+
+  var authScreen = document.getElementById('auth-screen');
+  var shell = document.getElementById('monk-shell');
+  var authUsernameInput = document.getElementById('auth-username');
+  var authPasswordInput = document.getElementById('auth-password');
+  var authErrorEl = document.getElementById('auth-error');
+  var authSubmitBtn = document.getElementById('auth-submit-btn');
+  var authToggleBtn = document.getElementById('auth-toggle-btn');
+  var authSubtitleEl = document.getElementById('auth-subtitle');
+  var authMode = 'login';
+
+  function showAuthError(msg) {
+    authErrorEl.textContent = msg;
+    authErrorEl.style.display = 'block';
+  }
+  function clearAuthError() {
+    authErrorEl.style.display = 'none';
+    authErrorEl.textContent = '';
+  }
+
+  function setAuthMode(mode) {
+    authMode = mode;
+    clearAuthError();
+    if (mode === 'signup') {
+      authSubtitleEl.textContent = 'Create an account for your practice';
+      authSubmitBtn.textContent = 'Sign Up';
+      authToggleBtn.textContent = 'Already have an account? Log in';
+    } else {
+      authSubtitleEl.textContent = 'Log in to your practice';
+      authSubmitBtn.textContent = 'Log In';
+      authToggleBtn.textContent = 'Need an account? Sign up';
+    }
+  }
+  authToggleBtn.addEventListener('click', function () {
+    setAuthMode(authMode === 'login' ? 'signup' : 'login');
+  });
+
+  function startApp(user) {
+    currentUser = user;
+    authScreen.style.display = 'none';
+    shell.style.display = 'flex';
+    init();
+  }
+
+  authSubmitBtn.addEventListener('click', function () {
+    var username = authUsernameInput.value.trim();
+    var password = authPasswordInput.value;
+    if (!username || !password) { showAuthError('Enter a username and password.'); return; }
+    clearAuthError();
+    authSubmitBtn.disabled = true;
+    var action = authMode === 'signup' ? b4aSignUp(username, password) : b4aLogIn(username, password);
+    action.then(function (result) {
+      localStorage.setItem('monkSessionToken', result.sessionToken);
+      localStorage.setItem('monkUsername', result.username);
+      startApp({ username: result.username });
+    }).catch(function (err) {
+      showAuthError(err.message || 'Something went wrong. Try again.');
+    }).then(function () {
+      authSubmitBtn.disabled = false;
+    });
+  });
+
+  [authUsernameInput, authPasswordInput].forEach(function (el) {
+    el.addEventListener('keydown', function (e) {
+      if (e.key === 'Enter') authSubmitBtn.click();
+    });
+  });
+
+  document.getElementById('monk-logout-btn').addEventListener('click', function () {
+    b4aLogOut().then(function () {
+      localStorage.removeItem('monkSessionToken');
+      localStorage.removeItem('monkUsername');
+      location.reload();
+    });
+  });
+
+  // Resume a saved session if there is one, otherwise show the
+  // login screen. A signup with a brand-new username always starts
+  // completely empty, since every read is scoped to that username.
+  var savedToken = localStorage.getItem('monkSessionToken');
+  var savedUsername = localStorage.getItem('monkUsername');
+  if (savedToken && savedUsername) {
+    b4aValidateSession(savedToken).then(function (result) {
+      startApp(result);
+    }).catch(function () {
+      localStorage.removeItem('monkSessionToken');
+      localStorage.removeItem('monkUsername');
+      setAuthMode('login');
+    });
+  } else {
+    setAuthMode('login');
+  }
 })();
