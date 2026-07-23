@@ -851,7 +851,15 @@
   // type. A folder is just a node with type 'folder' that other
   // nodes point at via parentId. Root-level items use parentId ''.
 
+  // '' = zoomed all the way out, showing the whole notebook as one
+  // web. A folder's objectId = zoomed into that folder, showing just
+  // its own subtree as a smaller local web. Same drag/drop rules
+  // apply at either zoom level.
   var kbCurrentFolderId = '';
+  var KB_CX = 900, KB_CY = 700, KB_RADIUS_STEP = 150;
+  var kbDrag = null; // {node, dx, dy, moved} while a pointer-drag is in progress
+  var kbLastPositions = {}; // nodeId -> {x,y} as last drawn, for drop hit-testing
+  var kbLastFolders = [];   // folder nodes currently on screen, i.e. valid drop targets
 
   function kbChildrenOf(parentId) {
     return cache.learningNodes.filter(function (n) { return (n.parentId || '') === parentId; });
@@ -891,12 +899,56 @@
     });
   }
 
+  // Auto-layout: a radial tree rooted at rootId (a folder's id, or
+  // '' for the whole notebook), spreading each node's children
+  // around it by angle and one ring further out per level. Only
+  // used as a fallback for nodes that don't have a saved (dragged)
+  // position yet; manual drags always take priority.
+  function kbAutoLayout(rootId) {
+    var positions = {};
+    function countLeaves(id) {
+      var kids = kbChildrenOf(id);
+      if (!kids.length) return 1;
+      var sum = 0;
+      kids.forEach(function (c) { sum += countLeaves(c.objectId); });
+      return sum;
+    }
+    function place(id, depth, angleStart, angleEnd) {
+      var angle = (angleStart + angleEnd) / 2;
+      positions[id] = depth === 0
+        ? { x: KB_CX, y: KB_CY }
+        : { x: KB_CX + depth * KB_RADIUS_STEP * Math.cos(angle), y: KB_CY + depth * KB_RADIUS_STEP * Math.sin(angle) };
+      var kids = kbChildrenOf(id);
+      if (!kids.length) return;
+      var total = countLeaves(id);
+      var cursor = angleStart;
+      kids.forEach(function (c) {
+        var slice = (countLeaves(c.objectId) / total) * (angleEnd - angleStart);
+        place(c.objectId, depth + 1, cursor, cursor + slice);
+        cursor += slice;
+      });
+    }
+    place(rootId, 0, 0, Math.PI * 2);
+    return positions;
+  }
+
+  function kbNodePos(node, auto) {
+    if (typeof node.x === 'number' && typeof node.y === 'number') return { x: node.x, y: node.y };
+    return auto[node.objectId] || { x: KB_CX, y: KB_CY };
+  }
+
+  function kbPersistPosition(node) {
+    if (!node.objectId) return;
+    updateInClass('MonkLearningNode', node.objectId, { x: node.x, y: node.y, parentId: node.parentId || '' })
+      .catch(function (err) { console.warn('MonkLearningNode position save failed:', err.message); });
+  }
+
   function renderKB() {
     // breadcrumb
     var crumbWrap = document.getElementById('kb-breadcrumb');
     crumbWrap.innerHTML = '';
     var rootBtn = document.createElement('button');
-    rootBtn.textContent = 'All';
+    rootBtn.textContent = 'Whole Web';
     rootBtn.addEventListener('click', function () { kbCurrentFolderId = ''; renderKB(); });
     crumbWrap.appendChild(rootBtn);
     kbPathTo(kbCurrentFolderId).forEach(function (n) {
@@ -910,71 +962,172 @@
       crumbWrap.appendChild(btn);
     });
 
-    var children = kbChildrenOf(kbCurrentFolderId);
-    var folders = children.filter(function (n) { return n.type === 'folder'; });
-    var content = children.filter(function (n) { return n.type !== 'folder'; });
-    var ordered = folders.concat(content);
+    kbRenderGraph(true);
+  }
 
-    // a small web view of this level: the current folder in the
-    // center, its direct children spread out below it. Sized to
-    // the number of children instead of always stretching across a
-    // fixed width, so two nodes sit close together instead of
-    // looking like scattered dots.
-    var webWrap = document.getElementById('kb-web');
-    if (!ordered.length) {
-      webWrap.innerHTML = '<p class="monk-empty" style="border:none">Nothing here yet. Add a folder or some content below.</p>';
-    } else {
-      var spacing = 130;
-      var h = 150;
-      var w = Math.max(220, (ordered.length - 1) * spacing + 180);
-      var cx = w / 2, cy = 28;
-      var childY = h - 40;
-      var startX = ordered.length === 1 ? cx : (w - (ordered.length - 1) * spacing) / 2;
-      var svg = '<svg viewBox="0 0 ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">';
-      ordered.forEach(function (n, i) {
-        var nx = ordered.length === 1 ? cx : startX + i * spacing;
-        svg += '<line x1="' + cx + '" y1="' + cy + '" x2="' + nx + '" y2="' + childY + '"></line>';
-      });
-      svg += '<g><circle class="current" cx="' + cx + '" cy="' + cy + '" r="7"></circle></g>';
-      ordered.forEach(function (n, i) {
-        var nx = ordered.length === 1 ? cx : startX + i * spacing;
-        var label = n.title.length > 14 ? n.title.slice(0, 13) + '\u2026' : n.title;
-        svg += '<g data-kb-node="' + n.objectId + '"><circle cx="' + nx + '" cy="' + childY + '" r="6"></circle>' +
-          '<text x="' + nx + '" y="' + (childY + 20) + '" text-anchor="middle">' + label + '</text></g>';
-      });
-      svg += '</svg>';
-      webWrap.innerHTML = svg;
-      Array.prototype.forEach.call(webWrap.querySelectorAll('[data-kb-node]'), function (g) {
-        var id = g.getAttribute('data-kb-node');
-        g.addEventListener('click', function () { kbOpenNode(kbNodeById(id)); });
-      });
+  // The graph itself: every node reachable from the current zoom
+  // level (the whole notebook when kbCurrentFolderId is '', or one
+  // folder's own subtree once you've zoomed in), drawn as circles
+  // connected to their parent. A node's spot is auto-arranged the
+  // first time it shows up; once you drag it, it keeps that spot.
+  function kbRenderGraph(recenter) {
+    var wrap = document.getElementById('kb-web');
+    var focusNode = kbCurrentFolderId ? kbNodeById(kbCurrentFolderId) : null;
+    var rootId = kbCurrentFolderId || '';
+    var nodes = focusNode ? [focusNode].concat(kbCollectDescendants(focusNode.objectId)) : cache.learningNodes.slice();
+
+    if (!nodes.length) {
+      wrap.innerHTML = '<p class="monk-empty" style="border:none">Nothing here yet. Add a folder or some content below.</p>';
+      kbLastPositions = {};
+      kbLastFolders = [];
+      return;
     }
 
-    // card grid
-    var grid = document.getElementById('kb-grid');
-    grid.innerHTML = '';
-    ordered.forEach(function (n) {
-      var card = document.createElement('div');
-      card.className = 'monk-kb-card';
-      var typeLabel = n.type === 'folder' ? 'Folder' : n.type === 'note' ? 'Sticky Note' : n.type === 'photo' ? 'Photo' : 'Sketch';
-      var inner = '<button class="monk-kb-card-remove" type="button" title="Remove">\u00d7</button>';
-      inner += '<p class="monk-kb-card-type">' + typeLabel + '</p>';
-      if (n.type === 'photo' && n.photoUrl) {
-        inner += '<img class="monk-kb-card-photo" src="' + n.photoUrl + '" alt="">';
-      }
-      inner += '<p class="monk-kb-card-title"></p>';
-      if (n.type === 'note' && n.body) inner += '<p class="monk-kb-card-preview"></p>';
-      card.innerHTML = inner;
-      card.querySelector('.monk-kb-card-title').textContent = n.title;
-      if (n.type === 'note' && n.body) card.querySelector('.monk-kb-card-preview').textContent = n.body;
-      card.querySelector('.monk-kb-card-remove').addEventListener('click', function (e) {
-        e.stopPropagation();
-        kbDeleteNode(n);
-      });
-      card.addEventListener('click', function () { kbOpenNode(n); });
-      grid.appendChild(card);
+    var auto = kbAutoLayout(rootId);
+    var byId = {};
+    nodes.forEach(function (n) { byId[n.objectId] = kbNodePos(n, auto); });
+    // the hub itself: the folder you've zoomed into, or a virtual
+    // "Notebook" center when you're looking at the whole web. Every
+    // top-level node connects to this, so the whole thing reads as
+    // one web instead of a scatter of disconnected dots.
+    byId[rootId] = focusNode ? byId[focusNode.objectId] : (auto[rootId] || { x: KB_CX, y: KB_CY });
+    kbLastPositions = byId;
+    kbLastFolders = nodes.filter(function (n) { return n.type === 'folder'; });
+    if (!focusNode) kbLastFolders.push({ objectId: '' }); // dropping near the hub promotes a node back to top level
+
+    var xs = Object.keys(byId).map(function (id) { return byId[id].x; });
+    var ys = Object.keys(byId).map(function (id) { return byId[id].y; });
+    var minX = Math.min.apply(null, xs) - 100, maxX = Math.max.apply(null, xs) + 100;
+    var minY = Math.min.apply(null, ys) - 60, maxY = Math.max.apply(null, ys) + 70;
+    var w = Math.max(600, maxX - minX);
+    var h = Math.max(420, maxY - minY);
+
+    var svg = '<svg data-ox="' + minX + '" data-oy="' + minY + '" viewBox="' + minX + ' ' + minY + ' ' + w + ' ' + h + '" width="' + w + '" height="' + h + '">';
+
+    // lines: every node connects back to its parent, and every
+    // top-level node connects to the hub
+    nodes.forEach(function (n) {
+      var p = byId[n.parentId || ''] || byId[rootId];
+      if (!p || n.objectId === rootId) return;
+      var c = byId[n.objectId];
+      svg += '<line x1="' + p.x + '" y1="' + p.y + '" x2="' + c.x + '" y2="' + c.y + '"></line>';
     });
+
+    function nodeMarkup(n, isRoot) {
+      var pos = isRoot ? byId[rootId] : byId[n.objectId];
+      var label = n.title.length > 16 ? n.title.slice(0, 15) + '\u2026' : n.title;
+      var r = n.type === 'folder' ? 9 : 6;
+      if (isRoot) {
+        return '<g class="kb-node current"><circle cx="' + pos.x + '" cy="' + pos.y + '" r="' + r + '"></circle>' +
+          '<text class="kb-node-label" x="' + pos.x + '" y="' + (pos.y + r + 16) + '" text-anchor="middle">' + label + '</text></g>';
+      }
+      var badge = n.type === 'note' ? 'N' : n.type === 'photo' ? 'P' : n.type === 'sketch' ? 'S' : '';
+      var g = '<g class="kb-node kb-node-' + n.type + '" data-kb-node="' + n.objectId + '">';
+      g += '<circle cx="' + pos.x + '" cy="' + pos.y + '" r="' + r + '"></circle>';
+      if (badge) g += '<text class="kb-node-badge" x="' + (pos.x - r - 3) + '" y="' + (pos.y - r - 2) + '" text-anchor="end">' + badge + '</text>';
+      g += '<text class="kb-node-label" x="' + pos.x + '" y="' + (pos.y + r + 16) + '" text-anchor="middle">' + label + '</text>';
+      g += '<text class="kb-node-remove" x="' + (pos.x + r + 3) + '" y="' + (pos.y - r - 2) + '" text-anchor="start">\u00d7</text>';
+      g += '</g>';
+      return g;
+    }
+
+    svg += nodeMarkup(focusNode || { title: 'Notebook' }, true);
+    nodes.forEach(function (n) {
+      if (focusNode && n.objectId === focusNode.objectId) return;
+      svg += nodeMarkup(n, false);
+    });
+
+    svg += '</svg>';
+    wrap.innerHTML = svg;
+
+    var svgEl = wrap.querySelector('svg');
+    Array.prototype.forEach.call(wrap.querySelectorAll('[data-kb-node]'), function (g) {
+      var id = g.getAttribute('data-kb-node');
+      var n = kbNodeById(id);
+      var removeEl = g.querySelector('.kb-node-remove');
+      removeEl.addEventListener('click', function (e) { e.stopPropagation(); kbDeleteNode(n); });
+      g.addEventListener('pointerdown', function (e) {
+        if (e.target === removeEl) return;
+        kbStartDrag(e, n);
+      });
+    });
+
+    if (recenter) {
+      var focusPos = byId[rootId];
+      requestAnimationFrame(function () {
+        wrap.scrollLeft = (focusPos.x - minX) - wrap.clientWidth / 2;
+        wrap.scrollTop = (focusPos.y - minY) - wrap.clientHeight / 2;
+      });
+    }
   }
+
+  function kbSvgPoint(svgEl, evt) {
+    var rect = svgEl.getBoundingClientRect();
+    var ox = parseFloat(svgEl.getAttribute('data-ox'));
+    var oy = parseFloat(svgEl.getAttribute('data-oy'));
+    var vb = svgEl.viewBox.baseVal;
+    var scaleX = vb.width / rect.width, scaleY = vb.height / rect.height;
+    return { x: ox + (evt.clientX - rect.left) * scaleX, y: oy + (evt.clientY - rect.top) * scaleY };
+  }
+
+  // Drag listens on document, not on the node's own <g>, because
+  // every pointermove re-renders the graph (kbRenderGraph replaces
+  // the whole <svg> via innerHTML), which would otherwise destroy
+  // the exact element a per-node listener was attached to partway
+  // through the drag. document never gets destroyed, so the stream
+  // survives; each handler re-queries the current <svg> fresh.
+  function kbStartDrag(e, n) {
+    e.preventDefault();
+    var svgEl = document.querySelector('#kb-web svg');
+    if (!svgEl) return;
+    var pos = kbLastPositions[n.objectId] || { x: n.x || KB_CX, y: n.y || KB_CY };
+    var pt = kbSvgPoint(svgEl, e);
+    kbDrag = { node: n, dx: pt.x - pos.x, dy: pt.y - pos.y, moved: false };
+    document.addEventListener('pointermove', kbOnDragMove);
+    document.addEventListener('pointerup', kbOnDragEnd);
+    document.addEventListener('pointercancel', kbOnDragEnd);
+  }
+
+  function kbOnDragMove(e) {
+    if (!kbDrag) return;
+    var svgEl = document.querySelector('#kb-web svg');
+    if (!svgEl) return;
+    var pt = kbSvgPoint(svgEl, e);
+    kbDrag.node.x = pt.x - kbDrag.dx;
+    kbDrag.node.y = pt.y - kbDrag.dy;
+    kbDrag.moved = true;
+    kbRenderGraph(false);
+  }
+
+  // A plain click (no movement) opens the node, same as before.
+  // A drag repositions it and, if it's dropped on top of a folder
+  // (or the hub, to pull it back out to this level), files it in
+  // there; dropped anywhere else it just keeps its new spot.
+  function kbOnDragEnd() {
+    document.removeEventListener('pointermove', kbOnDragMove);
+    document.removeEventListener('pointerup', kbOnDragEnd);
+    document.removeEventListener('pointercancel', kbOnDragEnd);
+    if (!kbDrag) return;
+    var n = kbDrag.node;
+    var moved = kbDrag.moved;
+    kbDrag = null;
+    if (!moved) { kbOpenNode(n); return; }
+
+    var excludeIds = [n.objectId].concat(kbCollectDescendants(n.objectId).map(function (d) { return d.objectId; }));
+    var target = null, best = 34;
+    kbLastFolders.forEach(function (f) {
+      if (excludeIds.indexOf(f.objectId) !== -1) return;
+      var p = kbLastPositions[f.objectId];
+      if (!p) return;
+      var dist = Math.hypot(p.x - n.x, p.y - n.y);
+      if (dist < best) { best = dist; target = f; }
+    });
+    if (target && target.objectId !== (n.parentId || '')) n.parentId = target.objectId;
+
+    kbRenderGraph(false);
+    kbPersistPosition(n);
+  }
+
 
   function kbOpenNode(n) {
     if (n.type === 'folder') { kbCurrentFolderId = n.objectId; renderKB(); return; }
@@ -2012,7 +2165,9 @@
           photoUrl: r.photoUrl || '',
           photoName: r.photoName || '',
           colorMode: r.colorMode || 'bw',
-          sketchStrokes: r.sketchStrokes || '[]'
+          sketchStrokes: r.sketchStrokes || '[]',
+          x: typeof r.x === 'number' ? r.x : null,
+          y: typeof r.y === 'number' ? r.y : null
         };
       });
     }).catch(function (err) {

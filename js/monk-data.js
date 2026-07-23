@@ -530,4 +530,3 @@ MONK.teaBlends = [
   { title: "Winter Spice Black Tea", ingredients: ["3 parts black tea", "1 part cinnamon chips", "1/2 part dried orange peel", "1/4 part cloves", "1/4 part star anise, broken"], steps: ["Combine and store in a sealed jar.", "Use 1 tsp per cup.", "Steep in just-off-boil water for 4-5 minutes.", "Good with a splash of milk."] },
   { title: "Lemon Ginger Immune Blend", ingredients: ["2 parts dried lemon peel", "2 parts dried ginger", "1 part echinacea leaf, optional", "1/2 part dried rosehips"], steps: ["Combine and store in a sealed jar.", "Use 1-2 tsp per cup.", "Steep, covered, in just-off-boil water for 7-8 minutes.", "Add honey once it's cool enough to sip."] }
 ];
-
